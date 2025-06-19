@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ON/OFF - Control Relé</title>
+    <link rel="stylesheet" href="../rele/styles_rele.css">
+    <link rel="stylesheet" href="onoff.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+    <!-- Contenedor central (centrado verticalmente) -->
+    <div id="main-center">
+        <div id="main-btn" class="onoff-btn off">
+            <!-- Reloj overlay sobre el área roja -->
+            <div id="clock-container">
+                <div id="clock-date">Lunes, 05 Junio 2025</div>
+                <div id="clock-time" style="font-size: 1.6rem; margin-top: 5px;">12:34:56</div>
+                <div id="clock-temp" style="font-size: 1rem; margin-top: 4px;">Temp: 22°C</div>
+            </div>
+            <div class="onoff-content">
+                <i id="main-icon" class="fas fa-power-off"></i>
+                <h1 id="main-text">APAGADO</h1>
+                <p id="status-feedback"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Switch digital: esquina inferior izquierda -->
+    <div class="digital-switch-container bottom-left">
+        <label class="digital-switch">
+            <input type="checkbox" id="digital-toggle">
+            <span class="slider"></span>
+        </label>
+        <div id="digital-state-label" class="digital-state-label">BOTÓN FÍSICO</div>
+    </div>
+
+    <!-- Botón Debug: esquina inferior derecha -->
+    <button id="debug-log-btn" class="debug-btn bottom-right" title="Ver Logs" style="display: none;">
+        <i class="fas fa-bug"></i>
+    </button>
+
+    <!-- Alertas -->
+    <div id="alert-box" class="alert-box" style="display: none;">
+        <span id="alert-msg"></span>
+        <button id="alert-close" class="close-btn">&times;</button>
+    </div>
+
+    <!-- Modal logs -->
+    <div id="modal-logs" class="modal-logs" style="display: none;">
+        <div class="modal-content">
+            <h3>Logs Manager</h3>
+            <pre id="logs-output" style="height: 300px; overflow-y: auto; background: #222; color: #0f0; padding: 10px; border-radius: 6px;"></pre>
+            <button id="close-logs" class="btn btn-danger">Cerrar</button>
+        </div>
+    </div>
+    <script src="onoff.js"></script>
+</body>
+</html>

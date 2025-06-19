@@ -1,0 +1,243 @@
+body {
+    background: #182636;
+    color: #fff;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    width: 100vw;
+    font-family: 'Segoe UI', 'Arial', 'Helvetica Neue', Arial, sans-serif;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+
+#clock-container {
+    position: fixed;
+    top: 28px;
+    left: 50%;
+    transform: translateX(-50%) scale(1); /* Cambiado a scale(1) ya que la animación manejará la escala */
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+    z-index: 1000;
+    padding: 18px 40px 12px 40px;
+    border-radius: 16px;
+    font-size: 1.16rem;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.13);
+    backdrop-filter: blur(5px);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    transition: background 0.3s, box-shadow 0.3s;
+    user-select: none;
+    touch-action: manipulation;
+    animation: clockPopIn 0.4s; /* Añadida la animación */
+}
+
+.onoff-btn {
+    width: 100vw;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: background 1.5s;
+    position: relative;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+.onoff-btn.on {
+    background: linear-gradient(135deg, #28a745 80%, #3fe788 100%);
+    animation: fadeOn 1s;
+}
+.onoff-btn.off {
+    background: linear-gradient(135deg, #dc3545 80%, #ff6b81 100%);
+    animation: fadeOff 1s;
+}
+
+.onoff-content {
+    text-align: center;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.24);
+    animation: popIn 0.4s;
+    margin-top: 180px;
+}
+.onoff-content h1 {
+    font-size: 3rem;
+    margin: 0.5em 0 0 0;
+}
+.onoff-content i {
+    font-size: 6rem;
+    margin-bottom: 0.3em;
+}
+.onoff-btn.on #main-icon { color: #fff; }
+.onoff-btn.off #main-icon { color: #fff; opacity: 0.6; }
+#status-feedback {
+    margin-top: 1em;
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+    min-height: 2em;
+}
+
+/* Switch digital */
+.digital-switch-container {
+    position: fixed;
+    bottom: 20px;
+    left: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    z-index: 99;
+}
+.digital-switch {
+    position: relative;
+    display: inline-block;
+    width: 72px;
+    height: 36px;
+    margin-bottom: 6px;
+
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+    padding: 18px 34px 12px 34px;
+    border-radius: 16px;
+    font-size: 1.10rem;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.13);
+    backdrop-filter: blur(5px);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    transition: background 0.3s, box-shadow 0.3s;
+    animation: popIn 0.7s cubic-bezier(.23,1.44,.43,.96);
+}
+.digital-switch input { display: none; }
+.slider {
+    position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+    background: #b8b8b8; border-radius: 36px;
+    transition: .4s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.slider:before {
+    position: absolute; content: "";
+    height: 28px; width: 28px; left: 4px; bottom: 4px;
+    background: #fff; border-radius: 50%; transition: .4s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.18);
+}
+.digital-switch input:checked + .slider { background: #28a745; }
+.digital-switch input:checked + .slider:before { transform: translateX(36px);}
+.digital-switch input + .slider { background: #dc3545;}
+.digital-switch input + .slider:before {transform: translateX(0);}
+.digital-state-label {
+    margin-right: 6px;
+    margin-top: 3px;
+    font-weight: bold;
+    font-size: 1.05rem;
+    color: #fff;
+    text-shadow: 0 1px 2px #222;
+    background: rgba(44,44,44,0.3);
+    padding: 2px 12px;
+    border-radius: 16px;
+    transition: background .4s;
+    user-select: none;
+}
+.digital-switch input:checked ~ .digital-state-label {
+    background: rgba(34,180,44,0.32);
+    color: #fff;
+}
+
+/* Botón Debug */
+.debug-btn.bottom-right {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 999;
+    margin-top: 8px;
+    background: #222;
+    color: #fff;
+    border-radius: 50%;
+    width: 38px; height: 38px;
+    font-size: 1.2rem;
+    border: none;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.22);
+    cursor: pointer;
+    transition: background .2s;
+}
+.debug-btn:hover { background: #28a745; color: #fff;}
+
+/* Alertas */
+.alert-box {
+    position: fixed;
+    top: 14px; right: 22px;
+    background: #f44336cc;
+    color: #fff;
+    padding: 16px 38px 16px 20px;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.16);
+    z-index: 9999;
+    font-size: 1.2em;
+    display: flex; align-items: center;
+    animation: alertAppear .6s;
+    user-select: none;
+}
+.close-btn {
+    margin-left: 16px;
+    border: none;
+    background: none;
+    color: #fff;
+    font-size: 1.3em;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Modal logs */
+.modal-logs {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(10,10,10,0.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 99999;
+}
+.modal-content {
+    background: #222;
+    color: #0f0;
+    padding: 20px 24px 18px 24px;
+    border-radius: 18px;
+    min-width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 8px 36px #000c;
+    text-align: left;
+}
+.modal-content h3 { margin: 0 0 14px 0; color: #fff; }
+#close-logs {
+    margin-top: 14px;
+    min-width: 120px;
+}
+
+/* Animaciones */
+@keyframes alertAppear {
+    from { opacity: 0; transform: translateY(-40px);}
+    to   { opacity: 1; transform: translateY(0);}
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.7);}
+    80% { transform: scale(1.05);}
+    100% { transform: scale(1);}
+}
+
+/* Nueva animación para el clock-container que mantiene el translateX */
+@keyframes clockPopIn {
+    0% { transform: translateX(-50%) scale(0.7);}
+    80% { transform: translateX(-50%) scale(1.05);}
+    100% { transform: translateX(-50%) scale(1);}
+}
+
+/* Responsive mobile */
+@media (max-width: 600px) {
+    #clock-container {
+        padding: 12px 4vw 8px 4vw;
+        font-size: 0.98rem;
+        max-width: 98vw;
+    }
+    .onoff-content h1 { font-size: 2.1rem;}
+    .onoff-content i { font-size: 4.4rem;}
+    .modal-content { min-width: 98vw;}
+}
