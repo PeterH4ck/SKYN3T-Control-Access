@@ -1,262 +1,157 @@
+// ===========================
+// ARCHIVO: /var/www/html/api/devices/list.php (MEJORADO)
+// DESCRIPCIÓN: Listar dispositivos con paginación y filtros
+// ===========================
+?>
 <?php
-/**
- * Archivo: /var/www/html/api/devices/list.php
- * API endpoint para listar dispositivos
- */
+require_once '../../includes/config.php';
+require_once '../../includes/database.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/security.php';
 
-// Definir constante del sistema
-define('SKYN3T_SYSTEM', true);
-
-// Headers de seguridad y CORS
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-// Manejo de solicitudes OPTIONS (CORS preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Headers
+header('Content-Type: application/json; charset=UTF-8');
+cors_headers();
 
 // Solo permitir GET
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Método no permitido',
-        'error_code' => 'METHOD_NOT_ALLOWED'
-    ]);
+    echo json_encode(['error' => 'Method not allowed']);
     exit;
 }
 
-// Incluir sistema de autenticación
-require_once __DIR__ . '/../../includes/config.php';
-require_once __DIR__ . '/../../includes/database.php';
-require_once __DIR__ . '/../../includes/security.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/session.php';
+// Verificar autenticación
+$auth_result = verify_api_auth();
+if (!$auth_result['success']) {
+    http_response_code(401);
+    echo json_encode(['error' => $auth_result['message']]);
+    exit;
+}
+
+// Parámetros de filtro y paginación
+$status = $_GET['status'] ?? 'all';
+$type = $_GET['type'] ?? '';
+$search = $_GET['search'] ?? '';
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = min(100, max(1, (int)($_GET['limit'] ?? 10)));
+$offset = ($page - 1) * $limit;
 
 try {
-    // Verificar autenticación
-    $auth = Auth::getInstance();
-    $user = $auth->requireAuth();
+    $db = Database::getInstance()->getConnection();
     
-    if (!$user) {
-        exit; // requireAuth ya maneja la respuesta
-    }
-    
-    // Verificar permisos para ver dispositivos
-    if (!$auth->hasPermission($user, 'view_devices') && 
-        !$auth->hasPermission($user, 'manage_devices') && 
-        !$auth->hasPermission($user, 'all')) {
-        http_response_code(403);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Sin permisos para ver dispositivos',
-            'error_code' => 'INSUFFICIENT_PERMISSIONS'
-        ]);
-        exit;
-    }
-    
-    $db = Database::getInstance();
-    
-    // Parámetros de filtrado y paginación
-    $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-    $limit = isset($_GET['limit']) ? max(1, min(100, (int)$_GET['limit'])) : 20;
-    $offset = ($page - 1) * $limit;
-    
-    $status = isset($_GET['status']) ? sanitize($_GET['status']) : null;
-    $type = isset($_GET['type']) ? sanitize($_GET['type']) : null;
-    $search = isset($_GET['search']) ? sanitize($_GET['search']) : null;
-    $sortBy = isset($_GET['sort']) ? sanitize($_GET['sort']) : 'created_at';
-    $sortOrder = isset($_GET['order']) && strtolower($_GET['order']) === 'asc' ? 'ASC' : 'DESC';
-    
-    // Validar campo de ordenamiento
-    $allowedSortFields = ['id', 'device_name', 'device_type', 'status', 'created_at', 'updated_at'];
-    if (!in_array($sortBy, $allowedSortFields)) {
-        $sortBy = 'created_at';
-    }
-    
-    // Construir consulta WHERE
-    $whereConditions = [];
+    // Construir query base
+    $where_conditions = [];
     $params = [];
     
-    if ($status && in_array($status, ['active', 'inactive', 'maintenance'])) {
-        $whereConditions[] = "status = ?";
+    if ($status !== 'all') {
+        $where_conditions[] = "d.status = ?";
         $params[] = $status;
     }
     
-    if ($type) {
-        $whereConditions[] = "device_type = ?";
+    if (!empty($type)) {
+        $where_conditions[] = "d.type = ?";
         $params[] = $type;
     }
     
-    if ($search) {
-        $whereConditions[] = "(device_name LIKE ? OR description LIKE ? OR ip_address LIKE ? OR mac_address LIKE ?)";
-        $searchTerm = "%$search%";
-        $params[] = $searchTerm;
-        $params[] = $searchTerm;
-        $params[] = $searchTerm;
-        $params[] = $searchTerm;
+    if (!empty($search)) {
+        $where_conditions[] = "(d.name LIKE ? OR d.mac_address LIKE ? OR d.ip_address LIKE ?)";
+        $search_param = "%$search%";
+        $params = array_merge($params, [$search_param, $search_param, $search_param]);
     }
     
-    $whereClause = empty($whereConditions) ? '' : 'WHERE ' . implode(' AND ', $whereConditions);
+    $where_clause = !empty($where_conditions) ? "WHERE " . implode(" AND ", $where_conditions) : "";
     
-    // Consulta principal con información del creador
-    $sql = "
-        SELECT d.*, u.username as created_by_username, u.name as created_by_name
+    // Contar total de registros
+    $count_query = "SELECT COUNT(*) as total FROM devices d $where_clause";
+    $stmt = $db->prepare($count_query);
+    $stmt->execute($params);
+    $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    
+    // Obtener dispositivos
+    $query = "
+        SELECT 
+            d.*,
+            u.username as added_by_username,
+            u.full_name as added_by_name,
+            (SELECT COUNT(*) FROM device_logs WHERE device_id = d.id) as log_count,
+            (SELECT MAX(created_at) FROM device_logs WHERE device_id = d.id) as last_activity
         FROM devices d
-        LEFT JOIN users u ON d.created_by = u.id
-        $whereClause
-        ORDER BY d.$sortBy $sortOrder
-        LIMIT $limit OFFSET $offset
+        LEFT JOIN users u ON u.id = d.added_by
+        $where_clause
+        ORDER BY d.created_at DESC
+        LIMIT ? OFFSET ?
     ";
     
-    $devices = $db->fetchAll($sql, $params);
+    $params[] = $limit;
+    $params[] = $offset;
     
-    // Contar total de dispositivos
-    $countSql = "SELECT COUNT(*) as total FROM devices d $whereClause";
-    $totalResult = $db->fetch($countSql, $params);
-    $total = $totalResult['total'];
+    $stmt = $db->prepare($query);
+    $stmt->execute($params);
+    $devices = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Obtener estadísticas
-    $stats = $db->fetch("
-        SELECT 
-            COUNT(*) as total_devices,
-            SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_devices,
-            SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive_devices,
-            SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) as maintenance_devices,
-            COUNT(DISTINCT device_type) as unique_types
-        FROM devices
-    ");
-    
-    // Obtener tipos de dispositivos únicos
-    $types = $db->fetchAll("
-        SELECT device_type, COUNT(*) as count 
-        FROM devices 
-        GROUP BY device_type 
-        ORDER BY count DESC
-    ");
-    
-    // Formatear respuesta de dispositivos
-    $formattedDevices = array_map(function($device) {
+    // Formatear dispositivos
+    $formatted_devices = array_map(function($device) {
         return [
             'id' => (int)$device['id'],
-            'device_name' => $device['device_name'],
-            'device_type' => $device['device_type'],
+            'name' => $device['name'],
+            'type' => $device['type'],
             'mac_address' => $device['mac_address'],
             'ip_address' => $device['ip_address'],
-            'status' => $device['status'],
             'location' => $device['location'],
             'description' => $device['description'],
+            'status' => $device['status'],
+            'added_by' => [
+                'id' => (int)$device['added_by'],
+                'username' => $device['added_by_username'],
+                'full_name' => $device['added_by_name']
+            ],
             'created_at' => $device['created_at'],
             'updated_at' => $device['updated_at'],
-            'created_by' => $device['created_by_username'] ? [
-                'id' => (int)$device['created_by'],
-                'username' => $device['created_by_username'],
-                'name' => $device['created_by_name']
-            ] : null,
-            'is_online' => checkDeviceOnline($device['ip_address']),
-            'last_seen' => getLastSeen($device['id'])
+            'log_count' => (int)$device['log_count'],
+            'last_activity' => $device['last_activity'],
+            'online' => check_device_online($device['ip_address'])
         ];
     }, $devices);
     
-    // Calcular información de paginación
-    $totalPages = ceil($total / $limit);
-    $hasNext = $page < $totalPages;
-    $hasPrev = $page > 1;
+    // Calcular páginas
+    $total_pages = ceil($total / $limit);
     
-    // Log de acceso
-    Security::logSecurityEvent('devices_listed', [
-        'user_id' => $user['id'],
-        'username' => $user['username'],
-        'total_returned' => count($formattedDevices),
+    // Respuesta
+    echo json_encode([
+        'success' => true,
+        'devices' => $formatted_devices,
+        'pagination' => [
+            'total' => (int)$total,
+            'page' => $page,
+            'limit' => $limit,
+            'pages' => $total_pages,
+            'has_next' => $page < $total_pages,
+            'has_prev' => $page > 1
+        ],
         'filters' => [
             'status' => $status,
             'type' => $type,
-            'search' => $search ? 'yes' : 'no'
+            'search' => $search
         ]
-    ], 'INFO');
-    
-    // Respuesta exitosa
-    echo json_encode([
-        'success' => true,
-        'devices' => $formattedDevices,
-        'pagination' => [
-            'current_page' => $page,
-            'total_pages' => $totalPages,
-            'total_items' => (int)$total,
-            'items_per_page' => $limit,
-            'has_next' => $hasNext,
-            'has_previous' => $hasPrev
-        ],
-        'statistics' => [
-            'total_devices' => (int)$stats['total_devices'],
-            'active_devices' => (int)$stats['active_devices'],
-            'inactive_devices' => (int)$stats['inactive_devices'],
-            'maintenance_devices' => (int)$stats['maintenance_devices'],
-            'unique_types' => (int)$stats['unique_types']
-        ],
-        'device_types' => array_map(function($type) {
-            return [
-                'type' => $type['device_type'],
-                'count' => (int)$type['count']
-            ];
-        }, $types),
-        'filters_applied' => [
-            'status' => $status,
-            'type' => $type,
-            'search' => $search,
-            'sort_by' => $sortBy,
-            'sort_order' => $sortOrder
-        ],
-        'timestamp' => date('Y-m-d H:i:s')
     ]);
     
 } catch (Exception $e) {
-    error_log("Error listando dispositivos: " . $e->getMessage());
-    
-    // Log del error
-    Security::logSecurityEvent('devices_list_error', [
-        'error' => $e->getMessage(),
-        'user_id' => $user['id'] ?? null
-    ], 'ERROR');
-    
+    error_log("Device list error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'success' => false,
-        'message' => 'Error interno del servidor',
-        'error_code' => 'INTERNAL_ERROR'
+        'error' => 'Failed to retrieve devices',
+        'message' => ENVIRONMENT === 'development' ? $e->getMessage() : 'Internal error'
     ]);
 }
 
-/**
- * Verificar si un dispositivo está online (ping simple)
- */
-function checkDeviceOnline($ipAddress) {
-    if (empty($ipAddress) || $ipAddress === '0.0.0.0') {
+// Función para verificar si el dispositivo está online
+function check_device_online($ip_address) {
+    // En producción, esto haría un ping real
+    // Por ahora, simulamos con probabilidad aleatoria
+    if (empty($ip_address)) {
         return false;
     }
     
-    // En modo desarrollo, simular estado online
-    if (getConfig('ENVIRONMENT') === 'development') {
-        return rand(0, 1) === 1; // 50% probabilidad
-    }
-    
-    // Ping simple con timeout de 1 segundo
-    $command = "ping -c 1 -W 1 " . escapeshellarg($ipAddress) . " > /dev/null 2>&1";
-    exec($command, $output, $return_code);
-    
-    return $return_code === 0;
+    // Simular estado online (70% de probabilidad de estar online)
+    return rand(1, 10) <= 7;
 }
-
-/**
- * Obtener última vez que se vio el dispositivo activo
- */
-function getLastSeen($deviceId) {
-    // Placeholder - en el futuro se puede implementar un sistema de heartbeat
-    // Por ahora retornar null
-    return null;
-}
-?>

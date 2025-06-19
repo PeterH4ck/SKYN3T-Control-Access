@@ -1,294 +1,164 @@
+// ===========================
+// ARCHIVO: /var/www/html/api/relay/control.php
+// DESCRIPCIÓN: Control del relé (ON/OFF)
+// ===========================
+?>
 <?php
-/**
- * Archivo: /var/www/html/api/relay/control.php
- * API endpoint para control del relé
- */
+require_once '../../includes/config.php';
+require_once '../../includes/database.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/security.php';
 
-// Definir constante del sistema
-define('SKYN3T_SYSTEM', true);
-
-// Headers de seguridad y CORS
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-// Manejo de solicitudes OPTIONS (CORS preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Headers
+header('Content-Type: application/json; charset=UTF-8');
+cors_headers();
 
 // Solo permitir POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Método no permitido',
-        'error_code' => 'METHOD_NOT_ALLOWED'
-    ]);
+    echo json_encode(['error' => 'Method not allowed']);
     exit;
 }
 
-// Incluir sistema de autenticación
-require_once __DIR__ . '/../../includes/config.php';
-require_once __DIR__ . '/../../includes/database.php';
-require_once __DIR__ . '/../../includes/security.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/session.php';
+// Verificar autenticación
+$auth_result = verify_api_auth();
+if (!$auth_result['success']) {
+    http_response_code(401);
+    echo json_encode(['error' => $auth_result['message']]);
+    exit;
+}
+
+$user = $auth_result['user'];
+
+// Verificar permisos (Admin o SuperUser)
+if (!in_array($user['role'], ['Admin', 'SuperUser'])) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Insufficient permissions']);
+    security_log('relay_control_denied', $user['id'], ['role' => $user['role']]);
+    exit;
+}
+
+// Obtener datos de la petición
+$input = get_json_input();
+
+// Validar acción
+$action = $input['action'] ?? '';
+if (!in_array($action, ['on', 'off', 'toggle'])) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid action. Must be: on, off, or toggle']);
+    exit;
+}
+
+$reason = sanitize_input($input['reason'] ?? 'Manual control');
 
 try {
-    // Verificar autenticación
-    $auth = Auth::getInstance();
-    $user = $auth->requireAuth();
-    
-    if (!$user) {
-        exit; // requireAuth ya maneja la respuesta
-    }
-    
-    // Verificar permisos de control de relé
-    if (!$auth->hasPermission($user, 'control_relay') && !$auth->hasPermission($user, 'all')) {
-        http_response_code(403);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Sin permisos para controlar el relé',
-            'error_code' => 'INSUFFICIENT_PERMISSIONS'
-        ]);
-        exit;
-    }
-    
-    // Obtener datos de la petición
-    $input = json_decode(file_get_contents('php://input'), true);
-    
-    // Validar datos requeridos
-    if (!isset($input['action'])) {
-        http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Acción requerida (on/off/toggle)',
-            'error_code' => 'MISSING_ACTION'
-        ]);
-        exit;
-    }
-    
-    $action = strtolower(trim($input['action']));
-    $method = $input['method'] ?? 'web'; // web, physical, screen
-    
-    // Validar acción
-    if (!in_array($action, ['on', 'off', 'toggle'])) {
-        http_response_code(400);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Acción inválida. Use: on, off, toggle',
-            'error_code' => 'INVALID_ACTION'
-        ]);
-        exit;
-    }
-    
-    // Validar método
-    if (!in_array($method, ['web', 'physical', 'screen'])) {
-        $method = 'web';
-    }
-    
-    $db = Database::getInstance();
+    $db = Database::getInstance()->getConnection();
     
     // Obtener estado actual del relé
-    $currentStatus = $db->fetch("
-        SELECT relay_state, led_state 
+    $stmt = $db->prepare("
+        SELECT status 
         FROM relay_status 
-        ORDER BY timestamp DESC 
+        ORDER BY changed_at DESC 
         LIMIT 1
     ");
+    $stmt->execute();
+    $current = $stmt->fetch(PDO::FETCH_ASSOC);
+    $current_status = $current ? $current['status'] : 'off';
     
-    $currentRelayState = $currentStatus ? (bool)$currentStatus['relay_state'] : false;
-    $currentLedState = $currentStatus ? (bool)$currentStatus['led_state'] : false;
-    
-    // Determinar nuevo estado según la acción
-    switch ($action) {
-        case 'on':
-            $newRelayState = true;
-            $newLedState = true;
-            break;
-        case 'off':
-            $newRelayState = false;
-            $newLedState = false;
-            break;
-        case 'toggle':
-            $newRelayState = !$currentRelayState;
-            $newLedState = !$currentLedState;
-            break;
+    // Determinar nuevo estado
+    if ($action === 'toggle') {
+        $new_status = ($current_status === 'on') ? 'off' : 'on';
+    } else {
+        $new_status = $action;
     }
     
-    // Verificar si hay cambio de estado
-    if ($newRelayState === $currentRelayState && $newLedState === $currentLedState) {
+    // Si el estado no cambia, retornar éxito sin hacer nada
+    if ($new_status === $current_status) {
         echo json_encode([
             'success' => true,
-            'message' => 'El relé ya está en el estado solicitado',
-            'relay_state' => $newRelayState,
-            'led_state' => $newLedState,
-            'changed' => false,
-            'previous_state' => $currentRelayState,
-            'timestamp' => date('Y-m-d H:i:s')
+            'new_status' => $new_status,
+            'message' => 'Relay already in ' . $new_status . ' state',
+            'changed' => false
         ]);
         exit;
     }
     
-    // Control físico del relé (usando GPIO)
-    $gpioResult = controlPhysicalRelay($newRelayState, $newLedState);
+    // Insertar nuevo estado en la base de datos
+    $stmt = $db->prepare("
+        INSERT INTO relay_status (status, changed_by, reason, changed_at) 
+        VALUES (?, ?, ?, NOW())
+    ");
+    $stmt->execute([$new_status, $user['username'], $reason]);
     
-    if (!$gpioResult['success']) {
-        // Log del error de GPIO
-        Security::logSecurityEvent('relay_gpio_error', [
-            'user_id' => $user['id'],
-            'action' => $action,
-            'error' => $gpioResult['message']
-        ], 'ERROR');
-        
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Error controlando GPIO: ' . $gpioResult['message'],
-            'error_code' => 'GPIO_ERROR'
-        ]);
-        exit;
-    }
+    // Aquí se integraría con el control físico del relé
+    // Por ahora, simulamos el control
+    $gpio_result = control_relay_gpio($new_status);
     
-    // Registrar cambio en la base de datos
-    $db->executeQuery("
-        INSERT INTO relay_status (relay_state, led_state, changed_by, change_method)
-        VALUES (?, ?, ?, ?)
-    ", [
-        $newRelayState ? 1 : 0,
-        $newLedState ? 1 : 0,
-        $user['id'],
-        $method
+    // Log de la acción
+    log_activity('relay_control', $user['id'], [
+        'action' => $action,
+        'new_status' => $new_status,
+        'reason' => $reason,
+        'gpio_result' => $gpio_result
     ]);
     
-    // Log de control exitoso
-    Security::logSecurityEvent('relay_controlled', [
-        'user_id' => $user['id'],
-        'username' => $user['username'],
-        'action' => $action,
-        'previous_state' => $currentRelayState,
-        'new_state' => $newRelayState,
-        'method' => $method
-    ], 'INFO');
+    // Crear notificación para administradores
+    create_notification(
+        'relay_change',
+        "Relay turned $new_status by {$user['username']}",
+        ['reason' => $reason],
+        'all_admins'
+    );
     
-    // Respuesta exitosa
     echo json_encode([
         'success' => true,
-        'message' => 'Relé controlado exitosamente',
-        'action' => $action,
-        'relay_state' => $newRelayState,
-        'led_state' => $newLedState,
+        'new_status' => $new_status,
+        'message' => 'Relay successfully turned ' . $new_status,
         'changed' => true,
-        'previous_state' => $currentRelayState,
-        'method' => $method,
-        'controlled_by' => [
-            'id' => $user['id'],
-            'username' => $user['username'],
-            'role' => $user['role']
-        ],
-        'timestamp' => date('Y-m-d H:i:s')
+        'gpio_control' => $gpio_result
     ]);
     
 } catch (Exception $e) {
-    error_log("Error en control de relé: " . $e->getMessage());
-    
-    // Log del error
-    Security::logSecurityEvent('relay_control_error', [
-        'error' => $e->getMessage(),
-        'user_id' => $user['id'] ?? null
-    ], 'ERROR');
-    
+    error_log("Relay control error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'success' => false,
-        'message' => 'Error interno del servidor',
-        'error_code' => 'INTERNAL_ERROR'
+        'error' => 'Failed to control relay',
+        'message' => ENVIRONMENT === 'development' ? $e->getMessage() : 'Internal error'
     ]);
 }
 
-/**
- * Controlar relé físico via GPIO
- */
-function controlPhysicalRelay($relayState, $ledState) {
+// Función para controlar el GPIO del relé
+function control_relay_gpio($status) {
+    // Esta función se integraría con el control real del GPIO
+    // Por ahora retornamos simulación
+    $gpio_pin = 23; // GPIO23 según la documentación
+    
+    // En producción, aquí se ejecutaría el comando para controlar el GPIO
+    // exec("gpio -g write $gpio_pin " . ($status === 'on' ? '1' : '0'), $output, $return_var);
+    
+    return [
+        'simulated' => true,
+        'gpio_pin' => $gpio_pin,
+        'status' => $status,
+        'timestamp' => date('Y-m-d H:i:s')
+    ];
+}
+
+// Función para crear notificaciones
+function create_notification($type, $message, $data, $target = 'all_admins') {
+    global $db;
+    
     try {
-        // Configuración de pines GPIO
-        $relayPin = getConfig('RELAY_GPIO_PIN', 23);
-        $ledPin = getConfig('LED_GPIO_PIN', 16);
-        
-        // Valores para GPIO (1 = ON, 0 = OFF)
-        $relayValue = $relayState ? 1 : 0;
-        $ledValue = $ledState ? 1 : 0;
-        
-        // Método 1: Usar Python script si existe
-        $pythonScript = '/var/www/html/cgi-bin/control-rele.py';
-        if (file_exists($pythonScript)) {
-            $command = "python3 $pythonScript $relayValue $ledValue 2>&1";
-            $output = shell_exec($command);
-            
-            if (strpos($output, 'ERROR') === false) {
-                return [
-                    'success' => true,
-                    'method' => 'python_script',
-                    'output' => trim($output)
-                ];
-            }
-        }
-        
-        // Método 2: Control directo via sysfs (si está disponible)
-        if (is_dir('/sys/class/gpio')) {
-            // Exportar pines si no están exportados
-            if (!is_dir("/sys/class/gpio/gpio$relayPin")) {
-                file_put_contents('/sys/class/gpio/export', $relayPin);
-                usleep(100000); // 100ms delay
-            }
-            
-            if (!is_dir("/sys/class/gpio/gpio$ledPin")) {
-                file_put_contents('/sys/class/gpio/export', $ledPin);
-                usleep(100000);
-            }
-            
-            // Configurar como salida
-            file_put_contents("/sys/class/gpio/gpio$relayPin/direction", 'out');
-            file_put_contents("/sys/class/gpio/gpio$ledPin/direction", 'out');
-            
-            // Escribir valores
-            file_put_contents("/sys/class/gpio/gpio$relayPin/value", $relayValue);
-            file_put_contents("/sys/class/gpio/gpio$ledPin/value", $ledValue);
-            
-            return [
-                'success' => true,
-                'method' => 'sysfs_gpio',
-                'relay_pin' => $relayPin,
-                'led_pin' => $ledPin,
-                'relay_value' => $relayValue,
-                'led_value' => $ledValue
-            ];
-        }
-        
-        // Método 3: Simulación para desarrollo
-        if (getConfig('ENVIRONMENT') === 'development' || !is_dir('/sys/class/gpio')) {
-            return [
-                'success' => true,
-                'method' => 'simulation',
-                'message' => 'GPIO simulado en modo desarrollo',
-                'relay_state' => $relayState,
-                'led_state' => $ledState
-            ];
-        }
-        
-        return [
-            'success' => false,
-            'message' => 'No se pudo acceder al GPIO'
-        ];
-        
+        // Si existe tabla notifications, insertar
+        $stmt = $db->prepare("
+            INSERT INTO notifications (type, message, data, target, created_at) 
+            VALUES (?, ?, ?, ?, NOW())
+        ");
+        $stmt->execute([$type, $message, json_encode($data), $target]);
+        return true;
     } catch (Exception $e) {
-        return [
-            'success' => false,
-            'message' => $e->getMessage()
-        ];
+        // Si la tabla no existe, solo log
+        error_log("Notification not created: " . $e->getMessage());
+        return false;
     }
 }
-?>

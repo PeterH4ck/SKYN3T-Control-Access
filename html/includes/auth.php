@@ -1,672 +1,569 @@
 <?php
 /**
- * Archivo: /var/www/html/includes/auth.php
- * Sistema de autenticación robusto para SKYN3T
+ * SKYN3T - Sistema de Control de Acceso
+ * Archivo: includes/auth.php
+ * Descripción: Sistema de autenticación y autorización - VERSIÓN CORREGIDA
+ * Versión: 2.0.1
+ * 
+ * FIXES APLICADOS:
+ * - Renombrado get_current_user() a get_authenticated_user() para evitar conflicto con función nativa PHP
+ * - Mejorado manejo de sesiones y tokens
  */
 
-// Evitar acceso directo
-if (!defined('SKYN3T_SYSTEM')) {
-    die('Access denied');
+if (!defined('DB_CONFIG_LOADED')) {
+    require_once __DIR__ . '/config.php';
 }
 
-require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database.php';
-require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/session.php';
 
 class Auth {
     private $db;
-    private static $instance = null;
+    private $sessionManager;
     
-    /**
-     * Constructor privado para Singleton
-     */
-    private function __construct() {
-        $this->db = Database::getInstance();
-    }
-    
-    /**
-     * Obtener instancia única (Singleton)
-     */
-    public static function getInstance() {
-        if (self::$instance === null) {
-            self::$instance = new self();
-        }
-        return self::$instance;
+    public function __construct() {
+        $this->db = Database::getInstance()->getConnection();
+        $this->sessionManager = SessionManager::getInstance();
     }
     
     /**
      * Autenticar usuario con username y password
+     * 
+     * @param string $username
+     * @param string $password
+     * @return array|false Usuario autenticado o false si falla
      */
     public function authenticate($username, $password) {
         try {
-            // Validar entrada
-            if (empty($username) || empty($password)) {
-                return [
-                    'success' => false,
-                    'message' => 'Usuario y contraseña requeridos',
-                    'error_code' => 'EMPTY_CREDENTIALS'
-                ];
+            // Buscar usuario
+            $stmt = $this->db->prepare("
+                SELECT id, username, password, role, is_active 
+                FROM " . USERS_TABLE . " 
+                WHERE username = ? 
+                LIMIT 1
+            ");
+            
+            $stmt->execute([$username]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$user || !password_verify($password, $user['password'])) {
+                return false;
             }
             
-            // Limpiar username
-            $username = trim($username);
-            
-            // Verificar rate limiting
-            if (!$this->checkRateLimit($username)) {
-                return [
-                    'success' => false,
-                    'message' => 'Demasiados intentos. Intente más tarde.',
-                    'error_code' => 'RATE_LIMITED'
-                ];
+            if (!$user['is_active']) {
+                throw new Exception('User account is inactive');
             }
             
-            // Obtener usuario de la base de datos
-            $user = $this->getUserByUsername($username);
+            // Eliminar el campo password antes de retornar
+            unset($user['password']);
             
-            if (!$user) {
-                $this->logFailedAttempt($username, null, 'user_not_found');
-                return [
-                    'success' => false,
-                    'message' => 'Usuario o contraseña incorrectos',
-                    'error_code' => 'INVALID_CREDENTIALS'
-                ];
-            }
-            
-            // Verificar si el usuario está activo
-            if (!$user['active'] || !$user['is_active']) {
-                $this->logFailedAttempt($username, $user['id'], 'user_inactive');
-                return [
-                    'success' => false,
-                    'message' => 'Usuario desactivado',
-                    'error_code' => 'USER_INACTIVE'
-                ];
-            }
-            
-            // Verificar si el usuario está bloqueado
-            if ($this->isUserLocked($user)) {
-                $this->logFailedAttempt($username, $user['id'], 'user_locked');
-                return [
-                    'success' => false,
-                    'message' => 'Usuario temporalmente bloqueado',
-                    'error_code' => 'USER_LOCKED'
-                ];
-            }
-            
-            // Verificar contraseña
-            if (!$this->verifyPassword($password, $user['password'])) {
-                $this->incrementFailedAttempts($user['id']);
-                $this->logFailedAttempt($username, $user['id'], 'wrong_password');
-                return [
-                    'success' => false,
-                    'message' => 'Usuario o contraseña incorrectos',
-                    'error_code' => 'INVALID_CREDENTIALS'
-                ];
-            }
-            
-            // Autenticación exitosa
-            $this->resetFailedAttempts($user['id']);
-            $this->updateLastLogin($user['id']);
-            $this->logSuccessfulLogin($user);
-            
-            return [
-                'success' => true,
-                'user' => $this->sanitizeUserData($user),
-                'message' => 'Autenticación exitosa'
-            ];
+            return $user;
             
         } catch (Exception $e) {
-            error_log("Error en autenticación: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'Error del sistema',
-                'error_code' => 'SYSTEM_ERROR'
-            ];
+            error_log("Authentication error: " . $e->getMessage());
+            return false;
         }
     }
     
     /**
-     * Verificar token de sesión
+     * Verificar si el usuario actual está autenticado
+     * 
+     * @return bool
      */
-    public function verifySession($token) {
+    public function isAuthenticated() {
+        $this->sessionManager->startSession();
+        return $this->sessionManager->validateSession();
+    }
+    
+    /**
+     * Verificar si el usuario tiene un rol específico
+     * 
+     * @param string|array $roles Rol o array de roles permitidos
+     * @return bool
+     */
+    public function hasRole($roles) {
+        if (!$this->isAuthenticated()) {
+            return false;
+        }
+        
+        $userRole = $_SESSION['role'] ?? null;
+        
+        if (!$userRole) {
+            return false;
+        }
+        
+        if (is_string($roles)) {
+            return $userRole === $roles;
+        }
+        
+        if (is_array($roles)) {
+            return in_array($userRole, $roles);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Verificar si el usuario tiene un permiso específico
+     * 
+     * @param string $permission
+     * @return bool
+     */
+    public function hasPermission($permission) {
+        if (!$this->isAuthenticated()) {
+            return false;
+        }
+        
+        $role = $_SESSION['role'] ?? null;
+        
+        if (!$role) {
+            return false;
+        }
+        
+        // Definir permisos por rol
+        $rolePermissions = [
+            'SuperUser' => [
+                'system.config',
+                'users.view', 'users.create', 'users.edit', 'users.delete',
+                'devices.view', 'devices.create', 'devices.edit', 'devices.delete',
+                'relay.control', 'relay.override',
+                'logs.view', 'logs.export',
+                'api.full_access'
+            ],
+            'Admin' => [
+                'users.view', 'users.create', 'users.edit',
+                'devices.view', 'devices.create', 'devices.edit', 'devices.delete',
+                'relay.control',
+                'logs.view', 'logs.export',
+                'api.full_access'
+            ],
+            'SupportAdmin' => [
+                'users.view',
+                'devices.view', 'devices.edit',
+                'relay.control',
+                'logs.view',
+                'api.limited_access'
+            ],
+            'User' => [
+                'devices.view',
+                'relay.control',
+                'api.limited_access'
+            ]
+        ];
+        
+        $permissions = $rolePermissions[$role] ?? [];
+        
+        return in_array($permission, $permissions);
+    }
+    
+    /**
+     * Obtener nivel de acceso del rol
+     * 
+     * @param string $role
+     * @return int
+     */
+    public function getRoleLevel($role) {
+        $levels = [
+            'SuperUser' => 4,
+            'Admin' => 3,
+            'SupportAdmin' => 2,
+            'User' => 1
+        ];
+        
+        return $levels[$role] ?? 0;
+    }
+    
+    /**
+     * Verificar si el usuario actual tiene un nivel de acceso mínimo
+     * 
+     * @param int $minLevel
+     * @return bool
+     */
+    public function hasMinimumLevel($minLevel) {
+        if (!$this->isAuthenticated()) {
+            return false;
+        }
+        
+        $role = $_SESSION['role'] ?? null;
+        
+        if (!$role) {
+            return false;
+        }
+        
+        return $this->getRoleLevel($role) >= $minLevel;
+    }
+    
+    /**
+     * Requerir autenticación - redirigir si no está autenticado
+     * 
+     * @param string $redirectTo URL de redirección (por defecto login)
+     */
+    public function requireAuth($redirectTo = '/login/') {
+        if (!$this->isAuthenticated()) {
+            header("Location: $redirectTo");
+            exit;
+        }
+    }
+    
+    /**
+     * Requerir un rol específico - redirigir si no tiene el rol
+     * 
+     * @param string|array $roles
+     * @param string $redirectTo
+     */
+    public function requireRole($roles, $redirectTo = '/dashboard/') {
+        $this->requireAuth();
+        
+        if (!$this->hasRole($roles)) {
+            header("Location: $redirectTo");
+            exit;
+        }
+    }
+    
+    /**
+     * Requerir un permiso específico
+     * 
+     * @param string $permission
+     * @param string $redirectTo
+     */
+    public function requirePermission($permission, $redirectTo = '/dashboard/') {
+        $this->requireAuth();
+        
+        if (!$this->hasPermission($permission)) {
+            header("Location: $redirectTo");
+            exit;
+        }
+    }
+    
+    /**
+     * Verificar token de API
+     * 
+     * @param string $token
+     * @return array|false Usuario si el token es válido
+     */
+    public function validateApiToken($token) {
         try {
-            if (empty($token)) {
-                return [
-                    'valid' => false,
-                    'message' => 'Token no proporcionado'
-                ];
-            }
+            // Buscar sesión activa con este token
+            $stmt = $this->db->prepare("
+                SELECT s.*, u.id as user_id, u.username, u.role, u.is_active
+                FROM " . SESSIONS_TABLE . " s
+                JOIN " . USERS_TABLE . " u ON s.user_id = u.id
+                WHERE s.session_token = ?
+                AND s.is_active = 1
+                AND s.expires_at > NOW()
+                LIMIT 1
+            ");
             
-            // Limpiar sesiones expiradas
-            $this->cleanExpiredSessions();
-            
-            // Buscar sesión activa
-            $session = $this->db->fetch("
-                SELECT s.*, u.username, u.name, u.email, u.role, u.privileges, u.active, u.is_active
-                FROM sessions s
-                JOIN users u ON s.user_id = u.id
-                WHERE s.session_token = ? AND s.expires_at > NOW()
-            ", [$token]);
+            $stmt->execute([$token]);
+            $session = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if (!$session) {
-                return [
-                    'valid' => false,
-                    'message' => 'Sesión inválida o expirada'
-                ];
+                return false;
             }
             
-            // Verificar que el usuario sigue activo
-            if (!$session['active'] || !$session['is_active']) {
-                $this->destroySession($token);
-                return [
-                    'valid' => false,
-                    'message' => 'Usuario desactivado'
-                ];
+            if (!$session['is_active']) {
+                return false;
             }
             
-            // Extender sesión
-            $this->extendSession($token);
+            // Actualizar última actividad
+            $stmt = $this->db->prepare("
+                UPDATE " . SESSIONS_TABLE . "
+                SET last_activity = NOW()
+                WHERE session_token = ?
+            ");
+            $stmt->execute([$token]);
             
             return [
-                'valid' => true,
-                'user' => $this->sanitizeUserData($session),
-                'session' => [
-                    'token' => $token,
-                    'expires_at' => date('Y-m-d H:i:s', time() + SESSION_LIFETIME),
-                    'created_at' => $session['created_at']
-                ]
+                'id' => $session['user_id'],
+                'username' => $session['username'],
+                'role' => $session['role'],
+                'session_id' => $session['session_id']
             ];
             
         } catch (Exception $e) {
-            error_log("Error verificando sesión: " . $e->getMessage());
-            return [
-                'valid' => false,
-                'message' => 'Error del sistema'
-            ];
-        }
-    }
-    
-    /**
-     * Crear nueva sesión
-     */
-    public function createSession($userId, $rememberMe = false) {
-        try {
-            // Limpiar sesiones anteriores del usuario
-            $this->db->executeQuery(
-                "DELETE FROM sessions WHERE user_id = ?",
-                [$userId]
-            );
-            
-            // Generar token único
-            $token = Security::generateSecureToken(TOKEN_LENGTH);
-            
-            // Calcular tiempo de expiración
-            $lifetime = $rememberMe ? SESSION_REMEMBER_LIFETIME : SESSION_LIFETIME;
-            $expiresAt = date('Y-m-d H:i:s', time() + $lifetime);
-            
-            // Obtener información de la conexión
-            $ip = Security::getClientIP();
-            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
-            
-            // Insertar nueva sesión
-            $this->db->executeQuery("
-                INSERT INTO sessions (user_id, session_token, expires_at, ip_address, user_agent)
-                VALUES (?, ?, ?, ?, ?)
-            ", [$userId, $token, $expiresAt, $ip, $userAgent]);
-            
-            return [
-                'success' => true,
-                'token' => $token,
-                'expires_at' => $expiresAt
-            ];
-            
-        } catch (Exception $e) {
-            error_log("Error creando sesión: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'Error creando sesión'
-            ];
-        }
-    }
-    
-    /**
-     * Destruir sesión
-     */
-    public function destroySession($token) {
-        try {
-            $this->db->executeQuery(
-                "DELETE FROM sessions WHERE session_token = ?",
-                [$token]
-            );
-            return true;
-        } catch (Exception $e) {
-            error_log("Error destruyendo sesión: " . $e->getMessage());
+            error_log("API token validation error: " . $e->getMessage());
             return false;
         }
     }
     
     /**
-     * Destruir todas las sesiones de un usuario
+     * Validar request de API
+     * 
+     * @return array|false Usuario autenticado o false
      */
-    public function destroyAllUserSessions($userId) {
-        try {
-            $this->db->executeQuery(
-                "DELETE FROM sessions WHERE user_id = ?",
-                [$userId]
-            );
-            return true;
-        } catch (Exception $e) {
-            error_log("Error destruyendo sesiones del usuario: " . $e->getMessage());
-            return false;
-        }
-    }
-    
-    /**
-     * Verificar permisos de usuario
-     */
-    public function hasPermission($user, $permission) {
-        // SuperUser tiene todos los permisos
-        if ($user['role'] === ROLE_SUPER_USER) {
-            return true;
-        }
-        
-        // Decodificar privilegios del usuario
-        $privileges = [];
-        if (!empty($user['privileges'])) {
-            $privileges = json_decode($user['privileges'], true) ?: [];
-        }
-        
-        // Verificar permiso específico
-        if (isset($privileges[$permission]) && $privileges[$permission]) {
-            return true;
-        }
-        
-        // Verificar permiso 'all'
-        if (isset($privileges['all']) && $privileges['all']) {
-            return true;
-        }
-        
-        // Verificar permisos por defecto del rol
-        return hasPermission($user['role'], $permission);
-    }
-    
-    /**
-     * Verificar si el usuario tiene rol suficiente
-     */
-    public function hasRole($user, $requiredRole) {
-        return isRoleHigherThan($user['role'], $requiredRole) || $user['role'] === $requiredRole;
-    }
-    
-    /**
-     * Middleware de autenticación para páginas protegidas
-     */
-    public function requireAuth($requiredRole = null, $permission = null) {
-        // Verificar sesión
-        $token = $this->getTokenFromRequest();
-        
-        if (!$token) {
-            $this->redirectToLogin('Token no encontrado');
-            return false;
-        }
-        
-        $sessionResult = $this->verifySession($token);
-        
-        if (!$sessionResult['valid']) {
-            $this->redirectToLogin($sessionResult['message']);
-            return false;
-        }
-        
-        $user = $sessionResult['user'];
-        
-        // Verificar rol requerido
-        if ($requiredRole && !$this->hasRole($user, $requiredRole)) {
-            $this->redirectToError('Permisos insuficientes');
-            return false;
-        }
-        
-        // Verificar permiso específico
-        if ($permission && !$this->hasPermission($user, $permission)) {
-            $this->redirectToError('Permiso denegado');
-            return false;
-        }
-        
-        // Guardar datos del usuario en variable global
-        $GLOBALS['current_user'] = $user;
-        $GLOBALS['current_session'] = $sessionResult['session'];
-        
-        return $user;
-    }
-    
-    /**
-     * Obtener usuario actual desde la sesión
-     */
-    public function getCurrentUser() {
-        return $GLOBALS['current_user'] ?? null;
-    }
-    
-    /**
-     * Cambiar contraseña de usuario
-     */
-    public function changePassword($userId, $newPassword, $currentPassword = null) {
-        try {
-            // Obtener usuario actual
-            $user = $this->db->fetch("SELECT * FROM users WHERE id = ?", [$userId]);
-            
-            if (!$user) {
-                return [
-                    'success' => false,
-                    'message' => 'Usuario no encontrado'
-                ];
-            }
-            
-            // Verificar contraseña actual si se proporciona
-            if ($currentPassword && !$this->verifyPassword($currentPassword, $user['password'])) {
-                return [
-                    'success' => false,
-                    'message' => 'Contraseña actual incorrecta'
-                ];
-            }
-            
-            // Validar nueva contraseña
-            $passwordValidation = Security::validatePassword($newPassword);
-            if (!$passwordValidation['valid']) {
-                return [
-                    'success' => false,
-                    'message' => $passwordValidation['message']
-                ];
-            }
-            
-            // Hashear nueva contraseña
-            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-            
-            // Actualizar contraseña
-            $this->db->executeQuery(
-                "UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?",
-                [$hashedPassword, $userId]
-            );
-            
-            // Destruir todas las sesiones del usuario (forzar re-login)
-            $this->destroyAllUserSessions($userId);
-            
-            // Log del cambio
-            $this->logActivity($userId, 'password_changed');
-            
-            return [
-                'success' => true,
-                'message' => 'Contraseña actualizada correctamente'
-            ];
-            
-        } catch (Exception $e) {
-            error_log("Error cambiando contraseña: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'Error del sistema'
-            ];
-        }
-    }
-    
-    // ================================================
-    // MÉTODOS PRIVADOS
-    // ================================================
-    
-    private function getUserByUsername($username) {
-        return $this->db->fetch("
-            SELECT id, username, password, name, email, role, privileges, 
-                   active, is_active, failed_attempts, locked_until, last_login
-            FROM users 
-            WHERE username = ? 
-            LIMIT 1
-        ", [$username]);
-    }
-    
-    private function verifyPassword($password, $hash) {
-        // Intentar con password_verify primero
-        if (password_verify($password, $hash)) {
-            return true;
-        }
-        
-        // Fallback para contraseñas en texto plano (compatibilidad)
-        return $password === $hash;
-    }
-    
-    private function isUserLocked($user) {
-        if (!$user['locked_until']) {
-            return false;
-        }
-        
-        return strtotime($user['locked_until']) > time();
-    }
-    
-    private function incrementFailedAttempts($userId) {
-        $this->db->executeQuery(
-            "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE id = ?",
-            [$userId]
-        );
-        
-        // Verificar si debe bloquearse
-        $user = $this->db->fetch("SELECT failed_attempts FROM users WHERE id = ?", [$userId]);
-        
-        if ($user && $user['failed_attempts'] >= MAX_LOGIN_ATTEMPTS) {
-            $lockUntil = date('Y-m-d H:i:s', time() + LOGIN_LOCKOUT_TIME);
-            $this->db->executeQuery(
-                "UPDATE users SET locked_until = ? WHERE id = ?",
-                [$lockUntil, $userId]
-            );
-        }
-    }
-    
-    private function resetFailedAttempts($userId) {
-        $this->db->executeQuery(
-            "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?",
-            [$userId]
-        );
-    }
-    
-    private function updateLastLogin($userId) {
-        $this->db->executeQuery(
-            "UPDATE users SET last_login = NOW() WHERE id = ?",
-            [$userId]
-        );
-    }
-    
-    private function extendSession($token) {
-        $newExpires = date('Y-m-d H:i:s', time() + SESSION_LIFETIME);
-        $this->db->executeQuery(
-            "UPDATE sessions SET expires_at = ? WHERE session_token = ?",
-            [$newExpires, $token]
-        );
-    }
-    
-    private function cleanExpiredSessions() {
-        $this->db->executeQuery("DELETE FROM sessions WHERE expires_at < NOW()");
-    }
-    
-    private function sanitizeUserData($user) {
-        $privileges = [];
-        if (!empty($user['privileges'])) {
-            $privileges = json_decode($user['privileges'], true) ?: [];
-        }
-        
-        return [
-            'id' => (int)$user['id'],
-            'username' => $user['username'],
-            'name' => $user['name'],
-            'email' => $user['email'],
-            'role' => $user['role'],
-            'privileges' => $privileges,
-            'active' => (bool)$user['active'],
-            'last_login' => $user['last_login']
-        ];
-    }
-    
-    private function getTokenFromRequest() {
+    public function validateRequest() {
         // Verificar header Authorization
         $headers = getallheaders();
-        if ($headers && isset($headers['Authorization'])) {
-            if (preg_match('/Bearer\s+(.*)$/i', $headers['Authorization'], $matches)) {
-                return trim($matches[1]);
-            }
+        $authHeader = $headers['Authorization'] ?? $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+        
+        if (empty($authHeader)) {
+            return false;
         }
         
-        // Verificar sesión PHP
-        if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
+        // Extraer token Bearer
+        if (!preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
+            return false;
         }
         
-        return $_SESSION['session_token'] ?? null;
-    }
-    
-    private function redirectToLogin($message = '') {
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-            // Request AJAX
-            header('Content-Type: application/json');
-            http_response_code(401);
-            echo json_encode([
-                'authenticated' => false,
-                'message' => $message,
-                'redirect' => URL_LOGIN
-            ]);
-            exit;
-        } else {
-            // Request normal
-            header('Location: ' . URL_LOGIN);
-            exit;
-        }
-    }
-    
-    private function redirectToError($message = '') {
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-            // Request AJAX
-            header('Content-Type: application/json');
-            http_response_code(403);
-            echo json_encode([
-                'error' => true,
-                'message' => $message
-            ]);
-            exit;
-        } else {
-            // Redirigir a página de error o dashboard
-            header('Location: ' . URL_DASHBOARD . '?error=' . urlencode($message));
-            exit;
-        }
-    }
-    
-    private function checkRateLimit($username) {
-        // Implementar rate limiting básico
-        $ip = Security::getClientIP();
+        $token = $matches[1];
         
-        // Contar intentos en la última hora
-        $attempts = $this->db->fetch("
-            SELECT COUNT(*) as count 
-            FROM access_log 
-            WHERE (username = ? OR ip_address = ?) 
-            AND action LIKE '%failed%' 
-            AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-        ", [$username, $ip]);
+        if (empty($token)) {
+            return false;
+        }
         
-        return $attempts['count'] < RATE_LIMIT_REQUESTS;
+        // Validar token
+        return $this->validateApiToken($token);
     }
     
-    private function logFailedAttempt($username, $userId, $reason) {
-        $this->logActivity($userId, 'login_failed', [
-            'username' => $username,
-            'reason' => $reason
-        ]);
-    }
-    
-    private function logSuccessfulLogin($user) {
-        $this->logActivity($user['id'], 'login_success', [
-            'username' => $user['username'],
-            'role' => $user['role']
-        ]);
-    }
-    
-    private function logActivity($userId, $action, $extraData = []) {
+    /**
+     * Registrar intento de acceso fallido
+     * 
+     * @param string $username
+     * @param string $reason
+     * @param string $ip
+     */
+    public function logFailedAttempt($username, $reason, $ip = null) {
         try {
-            $ip = Security::getClientIP();
-            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+            $ip = $ip ?: ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+            $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
             
-            $this->db->executeQuery("
-                INSERT INTO access_log (user_id, username, action, ip_address, user_agent)
-                VALUES (?, ?, ?, ?, ?)
-            ", [
-                $userId,
-                $extraData['username'] ?? '',
-                $action,
-                $ip,
-                $userAgent
+            $stmt = $this->db->prepare("
+                INSERT INTO " . ACCESS_LOG_TABLE . "
+                (user_id, username, action, details, ip_address, user_agent)
+                VALUES (NULL, ?, 'auth_failed', ?, ?, ?)
+            ");
+            
+            $details = json_encode([
+                'reason' => $reason,
+                'timestamp' => date('Y-m-d H:i:s')
             ]);
+            
+            $stmt->execute([$username, $details, $ip, $userAgent]);
+            
         } catch (Exception $e) {
-            error_log("Error registrando actividad: " . $e->getMessage());
+            error_log("Failed to log auth attempt: " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Verificar si una IP está bloqueada por intentos fallidos
+     * 
+     * @param string $ip
+     * @return bool
+     */
+    public function isIpBlocked($ip) {
+        try {
+            // Contar intentos fallidos en los últimos 15 minutos
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) as attempts
+                FROM " . ACCESS_LOG_TABLE . "
+                WHERE ip_address = ?
+                AND action IN ('auth_failed', 'login_failed')
+                AND timestamp > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+            ");
+            
+            $stmt->execute([$ip]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return ($result['attempts'] >= 5);
+            
+        } catch (Exception $e) {
+            error_log("IP block check error: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Cerrar sesión del usuario actual
+     */
+    public function logout() {
+        $this->sessionManager->destroySession();
+    }
+    
+    /**
+     * Cambiar contraseña del usuario
+     * 
+     * @param int $userId
+     * @param string $currentPassword
+     * @param string $newPassword
+     * @return bool
+     */
+    public function changePassword($userId, $currentPassword, $newPassword) {
+        try {
+            // Verificar contraseña actual
+            $stmt = $this->db->prepare("
+                SELECT password 
+                FROM " . USERS_TABLE . " 
+                WHERE id = ?
+            ");
+            
+            $stmt->execute([$userId]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$user || !password_verify($currentPassword, $user['password'])) {
+                return false;
+            }
+            
+            // Actualizar contraseña
+            $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+            
+            $stmt = $this->db->prepare("
+                UPDATE " . USERS_TABLE . "
+                SET password = ?,
+                    updated_at = NOW()
+                WHERE id = ?
+            ");
+            
+            return $stmt->execute([$newHash, $userId]);
+            
+        } catch (Exception $e) {
+            error_log("Password change error: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Generar token de recuperación de contraseña
+     * 
+     * @param string $email
+     * @return string|false Token o false si falla
+     */
+    public function generatePasswordResetToken($email) {
+        try {
+            // Buscar usuario por email
+            $stmt = $this->db->prepare("
+                SELECT id 
+                FROM " . USERS_TABLE . " 
+                WHERE email = ? 
+                AND is_active = 1
+            ");
+            
+            $stmt->execute([$email]);
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$user) {
+                return false;
+            }
+            
+            // Generar token único
+            $token = bin2hex(random_bytes(32));
+            $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+            
+            // Guardar token
+            $stmt = $this->db->prepare("
+                INSERT INTO password_resets 
+                (user_id, token, expires_at) 
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                token = VALUES(token),
+                expires_at = VALUES(expires_at)
+            ");
+            
+            $stmt->execute([$user['id'], $token, $expires]);
+            
+            return $token;
+            
+        } catch (Exception $e) {
+            error_log("Password reset token error: " . $e->getMessage());
+            return false;
         }
     }
 }
 
-// ================================================
-// FUNCIONES HELPER GLOBALES
-// ================================================
-
-/**
- * Obtener instancia de Auth
- */
-function getAuth() {
-    return Auth::getInstance();
-}
+// Funciones helper globales
 
 /**
  * Verificar si el usuario está autenticado
+ * 
+ * @return bool
  */
-function isAuthenticated() {
-    $auth = getAuth();
-    $token = $auth->getTokenFromRequest();
-    
-    if (!$token) {
-        return false;
+function is_authenticated() {
+    $auth = new Auth();
+    return $auth->isAuthenticated();
+}
+
+/**
+ * Obtener usuario autenticado actual (RENOMBRADA de get_current_user)
+ * 
+ * @return array|null
+ */
+function get_authenticated_user() {
+    if (!is_authenticated()) {
+        return null;
     }
     
-    $result = $auth->verifySession($token);
-    return $result['valid'];
+    return [
+        'id' => $_SESSION['user_id'] ?? null,
+        'username' => $_SESSION['username'] ?? null,
+        'role' => $_SESSION['role'] ?? null
+    ];
 }
 
 /**
- * Requerir autenticación en la página actual
+ * Verificar si el usuario tiene un rol específico
+ * 
+ * @param string|array $roles
+ * @return bool
  */
-function requireAuth($role = null, $permission = null) {
-    $auth = getAuth();
-    return $auth->requireAuth($role, $permission);
+function user_has_role($roles) {
+    $auth = new Auth();
+    return $auth->hasRole($roles);
 }
 
 /**
- * Obtener usuario actual
+ * Verificar si el usuario tiene un permiso específico
+ * 
+ * @param string $permission
+ * @return bool
  */
-function getCurrentUser() {
-    return $GLOBALS['current_user'] ?? null;
+function user_can($permission) {
+    $auth = new Auth();
+    return $auth->hasPermission($permission);
 }
 
 /**
- * Verificar si el usuario actual tiene un permiso
+ * Requerir autenticación
+ * 
+ * @param string $redirectTo
  */
-function canUser($permission) {
-    $user = getCurrentUser();
-    if (!$user) {
-        return false;
-    }
+function require_auth($redirectTo = '/login/') {
+    $auth = new Auth();
+    $auth->requireAuth($redirectTo);
+}
+
+/**
+ * Requerir rol específico
+ * 
+ * @param string|array $roles
+ * @param string $redirectTo
+ */
+function require_role($roles, $redirectTo = '/dashboard/') {
+    $auth = new Auth();
+    $auth->requireRole($roles, $redirectTo);
+}
+
+/**
+ * Middleware para proteger páginas
+ * Usar al inicio de páginas protegidas
+ */
+function auth_middleware() {
+    $auth = new Auth();
     
-    $auth = getAuth();
-    return $auth->hasPermission($user, $permission);
-}
-
-/**
- * Verificar si el usuario actual tiene un rol específico
- */
-function hasUserRole($role) {
-    $user = getCurrentUser();
-    if (!$user) {
-        return false;
+    if (!$auth->isAuthenticated()) {
+        // Si es una petición AJAX, devolver JSON
+        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
+            header('Content-Type: application/json');
+            http_response_code(401);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Authentication required'
+            ]);
+            exit;
+        }
+        
+        // Si no, redirigir al login
+        header('Location: /login/');
+        exit;
     }
-    
-    $auth = getAuth();
-    return $auth->hasRole($user, $role);
 }
-?>

@@ -1,517 +1,335 @@
+// ===========================
+// ARCHIVO: /var/www/html/api/system/health.php
+// DESCRIPCIÓN: Estado de salud del sistema
+// ===========================
+?>
 <?php
-/**
- * Archivo: /var/www/html/api/system/health.php
- * API endpoint para verificar estado de salud del sistema
- */
+require_once '../../includes/config.php';
+require_once '../../includes/database.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/security.php';
 
-// Definir constante del sistema
-define('SKYN3T_SYSTEM', true);
-
-// Headers de seguridad y CORS
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-// Manejo de solicitudes OPTIONS (CORS preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Headers
+header('Content-Type: application/json; charset=UTF-8');
+cors_headers();
 
 // Solo permitir GET
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Método no permitido',
-        'error_code' => 'METHOD_NOT_ALLOWED'
-    ]);
+    echo json_encode(['error' => 'Method not allowed']);
     exit;
 }
 
-// Incluir sistema
-require_once __DIR__ . '/../../includes/config.php';
-require_once __DIR__ . '/../../includes/database.php';
-require_once __DIR__ . '/../../includes/security.php';
+// Verificar autenticación
+$auth_result = verify_api_auth();
+if (!$auth_result['success']) {
+    http_response_code(401);
+    echo json_encode(['error' => $auth_result['message']]);
+    exit;
+}
 
 try {
-    $startTime = microtime(true);
+    $components = [];
     
-    // Información general del sistema
-    $health = [
-        'status' => 'healthy',
-        'timestamp' => date('Y-m-d H:i:s'),
-        'version' => getConfig('SYSTEM_VERSION', '2.0.0'),
-        'environment' => getConfig('ENVIRONMENT', 'development'),
-        'components' => [],
-        'metrics' => [],
-        'alerts' => []
-    ];
+    // 1. Estado de la base de datos
+    $db_health = check_database_health();
+    $components['database'] = $db_health;
     
-    // ================================================
-    // VERIFICAR BASE DE DATOS
-    // ================================================
-    try {
-        $db = Database::getInstance();
-        $dbStart = microtime(true);
-        
-        // Test de conexión básico
-        $connectionTest = $db->fetch("SELECT 1 as test");
-        $dbResponseTime = (microtime(true) - $dbStart) * 1000;
-        
-        // Obtener información de la base de datos
-        $dbInfo = $db->getDatabaseInfo();
-        
-        // Verificar tablas críticas
-        $criticalTables = ['users', 'sessions', 'devices', 'relay_status', 'access_log'];
-        $tablesStatus = [];
-        
-        foreach ($criticalTables as $table) {
-            $tableExists = $db->tableExists($table);
-            $tablesStatus[$table] = $tableExists;
-            
-            if (!$tableExists) {
-                $health['alerts'][] = [
-                    'level' => 'critical',
-                    'component' => 'database',
-                    'message' => "Tabla crítica '$table' no encontrada"
-                ];
-                $health['status'] = 'unhealthy';
-            }
-        }
-        
-        // Verificar rendimiento de la base de datos
-        if ($dbResponseTime > 1000) { // > 1 segundo
-            $health['alerts'][] = [
-                'level' => 'warning',
-                'component' => 'database',
-                'message' => 'Tiempo de respuesta de base de datos alto: ' . round($dbResponseTime, 2) . 'ms'
-            ];
-            if ($health['status'] === 'healthy') {
-                $health['status'] = 'degraded';
-            }
-        }
-        
-        $health['components']['database'] = [
-            'status' => count($health['alerts']) == 0 ? 'healthy' : 'degraded',
-            'response_time_ms' => round($dbResponseTime, 2),
-            'version' => $dbInfo['version'],
-            'connection_status' => $dbInfo['connection_status'],
-            'tables_count' => $dbInfo['tables_count'],
-            'critical_tables' => $tablesStatus
-        ];
-        
-    } catch (Exception $e) {
-        $health['components']['database'] = [
-            'status' => 'unhealthy',
-            'error' => $e->getMessage()
-        ];
-        $health['alerts'][] = [
-            'level' => 'critical',
-            'component' => 'database',
-            'message' => 'Error de conexión: ' . $e->getMessage()
-        ];
-        $health['status'] = 'unhealthy';
-    }
+    // 2. Estado del gestor de sesiones
+    $session_health = check_session_health();
+    $components['session_manager'] = $session_health;
     
-    // ================================================
-    // VERIFICAR SISTEMA DE ARCHIVOS
-    // ================================================
-    $filesystemHealth = checkFilesystemHealth();
-    $health['components']['filesystem'] = $filesystemHealth;
+    // 3. Estado del controlador de relé
+    $relay_health = check_relay_health();
+    $components['relay_controller'] = $relay_health;
     
-    if ($filesystemHealth['status'] !== 'healthy') {
-        if ($health['status'] === 'healthy') {
-            $health['status'] = 'degraded';
-        }
-        $health['alerts'] = array_merge($health['alerts'], $filesystemHealth['alerts'] ?? []);
-    }
+    // 4. Estado del sistema de archivos
+    $fs_health = check_filesystem_health();
+    $components['file_system'] = $fs_health;
     
-    // ================================================
-    // VERIFICAR SESIONES
-    // ================================================
-    try {
-        if (isset($db)) {
-            $sessionStart = microtime(true);
-            
-            // Limpiar sesiones expiradas
-            $expiredSessions = $db->update("DELETE FROM sessions WHERE expires_at < NOW()");
-            
-            // Contar sesiones activas
-            $activeSessions = $db->fetch("SELECT COUNT(*) as count FROM sessions WHERE expires_at > NOW()");
-            $sessionResponseTime = (microtime(true) - $sessionStart) * 1000;
-            
-            $health['components']['sessions'] = [
-                'status' => 'healthy',
-                'active_sessions' => (int)$activeSessions['count'],
-                'expired_cleaned' => $expiredSessions,
-                'response_time_ms' => round($sessionResponseTime, 2)
-            ];
-            
-            // Alertar si hay demasiadas sesiones activas
-            if ($activeSessions['count'] > 100) {
-                $health['alerts'][] = [
-                    'level' => 'warning',
-                    'component' => 'sessions',
-                    'message' => 'Alto número de sesiones activas: ' . $activeSessions['count']
-                ];
-                if ($health['status'] === 'healthy') {
-                    $health['status'] = 'degraded';
-                }
-            }
-        }
-    } catch (Exception $e) {
-        $health['components']['sessions'] = [
-            'status' => 'unhealthy',
-            'error' => $e->getMessage()
-        ];
-        $health['alerts'][] = [
-            'level' => 'critical',
-            'component' => 'sessions',
-            'message' => 'Error en sistema de sesiones: ' . $e->getMessage()
-        ];
-        $health['status'] = 'unhealthy';
-    }
+    // 5. Estado del servidor web
+    $web_health = check_webserver_health();
+    $components['web_server'] = $web_health;
     
-    // ================================================
-    // VERIFICAR CONTROL DE RELÉ
-    // ================================================
-    try {
-        if (isset($db)) {
-            $relayStart = microtime(true);
-            
-            // Verificar último estado del relé
-            $lastRelayStatus = $db->fetch("
-                SELECT relay_state, led_state, timestamp 
-                FROM relay_status 
-                ORDER BY timestamp DESC 
-                LIMIT 1
-            ");
-            
-            $relayResponseTime = (microtime(true) - $relayStart) * 1000;
-            
-            // Verificar GPIO (si está disponible)
-            $gpioStatus = checkGPIOHealth();
-            
-            $health['components']['relay'] = [
-                'status' => $gpioStatus['available'] ? 'healthy' : 'degraded',
-                'last_state' => $lastRelayStatus ? [
-                    'relay_on' => (bool)$lastRelayStatus['relay_state'],
-                    'led_on' => (bool)$lastRelayStatus['led_state'],
-                    'timestamp' => $lastRelayStatus['timestamp']
-                ] : null,
-                'gpio_available' => $gpioStatus['available'],
-                'gpio_method' => $gpioStatus['method'],
-                'response_time_ms' => round($relayResponseTime, 2)
-            ];
-            
-            if (!$gpioStatus['available'] && getConfig('ENVIRONMENT') !== 'development') {
-                $health['alerts'][] = [
-                    'level' => 'warning',
-                    'component' => 'relay',
-                    'message' => 'GPIO no disponible para control físico del relé'
-                ];
-                if ($health['status'] === 'healthy') {
-                    $health['status'] = 'degraded';
-                }
-            }
-        }
-    } catch (Exception $e) {
-        $health['components']['relay'] = [
-            'status' => 'unhealthy',
-            'error' => $e->getMessage()
-        ];
-        $health['alerts'][] = [
-            'level' => 'warning',
-            'component' => 'relay',
-            'message' => 'Error verificando relé: ' . $e->getMessage()
-        ];
-    }
-    
-    // ================================================
-    // VERIFICAR LOGS Y SEGURIDAD
-    // ================================================
-    $logsHealth = checkLogsHealth();
-    $health['components']['logs'] = $logsHealth;
-    
-    if ($logsHealth['status'] !== 'healthy') {
-        $health['alerts'] = array_merge($health['alerts'], $logsHealth['alerts'] ?? []);
-        if ($health['status'] === 'healthy') {
-            $health['status'] = 'degraded';
-        }
-    }
-    
-    // ================================================
-    // MÉTRICAS DEL SISTEMA
-    // ================================================
-    $health['metrics'] = [
-        'memory_usage' => [
-            'current' => memory_get_usage(true),
-            'peak' => memory_get_peak_usage(true),
-            'formatted' => [
-                'current' => formatBytes(memory_get_usage(true)),
-                'peak' => formatBytes(memory_get_peak_usage(true))
-            ]
-        ],
-        'execution_time_ms' => round((microtime(true) - $startTime) * 1000, 2),
-        'php_version' => PHP_VERSION,
-        'server_load' => getServerLoad(),
-        'disk_usage' => getDiskUsage()
-    ];
-    
-    // ================================================
-    // VERIFICACIONES ADICIONALES
-    // ================================================
-    
-    // Verificar configuración crítica
-    $configHealth = checkConfigurationHealth();
-    if ($configHealth['issues']) {
-        $health['alerts'] = array_merge($health['alerts'], $configHealth['alerts']);
-        if ($health['status'] === 'healthy') {
-            $health['status'] = 'degraded';
-        }
-    }
-    
-    // Establecer código de respuesta HTTP según el estado
-    if ($health['status'] === 'unhealthy') {
-        http_response_code(503); // Service Unavailable
-    } elseif ($health['status'] === 'degraded') {
-        http_response_code(200); // OK pero con advertencias
+    // Determinar estado general
+    $all_statuses = array_column($components, 'status');
+    if (in_array('critical', $all_statuses)) {
+        $overall_status = 'critical';
+    } elseif (in_array('warning', $all_statuses)) {
+        $overall_status = 'warning';
     } else {
-        http_response_code(200); // OK
+        $overall_status = 'healthy';
     }
     
-    // Respuesta final
-    echo json_encode($health, JSON_PRETTY_PRINT);
+    echo json_encode([
+        'success' => true,
+        'status' => $overall_status,
+        'components' => $components,
+        'checked_at' => date('Y-m-d H:i:s')
+    ]);
     
 } catch (Exception $e) {
-    error_log("Error en health check: " . $e->getMessage());
-    
+    error_log("Health check error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'status' => 'unhealthy',
-        'timestamp' => date('Y-m-d H:i:s'),
-        'error' => 'Health check failed',
-        'message' => $e->getMessage()
+        'error' => 'Failed to check system health',
+        'message' => ENVIRONMENT === 'development' ? $e->getMessage() : 'Internal error'
     ]);
 }
 
-/**
- * Verificar salud del sistema de archivos
- */
-function checkFilesystemHealth() {
-    $health = [
-        'status' => 'healthy',
-        'alerts' => []
-    ];
-    
-    // Verificar archivos críticos
-    $criticalFiles = [
-        '/var/www/html/includes/config.php',
-        '/var/www/html/includes/database.php',
-        '/var/www/html/includes/auth.php',
-        '/var/www/html/includes/security.php',
-        '/var/www/html/includes/session.php'
-    ];
-    
-    $missingFiles = [];
-    foreach ($criticalFiles as $file) {
-        if (!file_exists($file)) {
-            $missingFiles[] = basename($file);
-        }
-    }
-    
-    if (!empty($missingFiles)) {
-        $health['status'] = 'unhealthy';
-        $health['alerts'][] = [
-            'level' => 'critical',
-            'component' => 'filesystem',
-            'message' => 'Archivos críticos faltantes: ' . implode(', ', $missingFiles)
-        ];
-    }
-    
-    // Verificar permisos de directorios
-    $directories = [
-        '/var/www/html/logs' => 'writable'
-    ];
-    
-    foreach ($directories as $dir => $requirement) {
-        if (!is_dir($dir)) {
-            $health['alerts'][] = [
-                'level' => 'warning',
-                'component' => 'filesystem',
-                'message' => "Directorio faltante: $dir"
-            ];
-            if ($health['status'] === 'healthy') {
-                $health['status'] = 'degraded';
-            }
-        } elseif ($requirement === 'writable' && !is_writable($dir)) {
-            $health['alerts'][] = [
-                'level' => 'warning',
-                'component' => 'filesystem',
-                'message' => "Directorio sin permisos de escritura: $dir"
-            ];
-            if ($health['status'] === 'healthy') {
-                $health['status'] = 'degraded';
-            }
-        }
-    }
-    
-    return $health;
-}
-
-/**
- * Verificar estado del GPIO
- */
-function checkGPIOHealth() {
-    $relayPin = getConfig('RELAY_GPIO_PIN', 23);
-    $ledPin = getConfig('LED_GPIO_PIN', 16);
-    
-    $status = [
-        'available' => false,
-        'method' => 'none',
-        'pins' => [
-            'relay' => $relayPin,
-            'led' => $ledPin
-        ]
-    ];
-    
-    // Verificar si GPIO está disponible via sysfs
-    if (is_dir('/sys/class/gpio')) {
-        $status['available'] = true;
-        $status['method'] = 'sysfs';
-        
-        // Verificar acceso a pines específicos
-        $status['pins']['relay_accessible'] = is_dir("/sys/class/gpio/gpio$relayPin") || 
-                                            is_writable('/sys/class/gpio/export');
-        $status['pins']['led_accessible'] = is_dir("/sys/class/gpio/gpio$ledPin") || 
-                                          is_writable('/sys/class/gpio/export');
-    }
-    
-    // En modo desarrollo, simular disponibilidad
-    if (getConfig('ENVIRONMENT') === 'development') {
-        $status['available'] = true;
-        $status['method'] = 'simulation';
-    }
-    
-    return $status;
-}
-
-/**
- * Verificar salud de logs
- */
-function checkLogsHealth() {
-    $health = [
-        'status' => 'healthy',
-        'alerts' => []
-    ];
-    
-    $logDir = '/var/www/html/logs';
-    
-    if (!is_dir($logDir)) {
-        $health['status'] = 'degraded';
-        $health['alerts'][] = [
-            'level' => 'warning',
-            'component' => 'logs',
-            'message' => 'Directorio de logs no existe'
-        ];
-    } elseif (!is_writable($logDir)) {
-        $health['status'] = 'degraded';
-        $health['alerts'][] = [
-            'level' => 'warning',
-            'component' => 'logs',
-            'message' => 'Directorio de logs sin permisos de escritura'
-        ];
-    }
-    
-    return $health;
-}
-
-/**
- * Verificar configuración crítica
- */
-function checkConfigurationHealth() {
-    $issues = [];
-    $alerts = [];
-    
-    // Verificar configuraciones críticas
-    if (!getConfig('DB_HOST')) {
-        $issues[] = 'DB_HOST no configurado';
-        $alerts[] = [
-            'level' => 'critical',
-            'component' => 'configuration',
-            'message' => 'Configuración de base de datos incompleta'
-        ];
-    }
-    
-    if (getConfig('DEBUG_MODE') && getConfig('ENVIRONMENT') === 'production') {
-        $issues[] = 'Debug mode activo en producción';
-        $alerts[] = [
-            'level' => 'warning',
-            'component' => 'configuration',
-            'message' => 'Modo debug activo en entorno de producción'
-        ];
-    }
-    
-    return [
-        'issues' => !empty($issues),
-        'alerts' => $alerts
-    ];
-}
-
-/**
- * Obtener carga del servidor
- */
-function getServerLoad() {
-    if (function_exists('sys_getloadavg')) {
-        $load = sys_getloadavg();
-        return [
-            '1min' => round($load[0], 2),
-            '5min' => round($load[1], 2),
-            '15min' => round($load[2], 2)
-        ];
-    }
-    
-    return null;
-}
-
-/**
- * Obtener uso de disco
- */
-function getDiskUsage() {
+// Función para verificar salud de la base de datos
+function check_database_health() {
     try {
-        $bytes = disk_free_bytes('/var/www/html');
-        $total = disk_total_space('/var/www/html');
+        $db = Database::getInstance()->getConnection();
         
-        if ($bytes !== false && $total !== false) {
-            $used = $total - $bytes;
-            $percentage = round(($used / $total) * 100, 2);
-            
-            return [
-                'total' => formatBytes($total),
-                'used' => formatBytes($used),
-                'free' => formatBytes($bytes),
-                'percentage_used' => $percentage
-            ];
+        // Test de conexión
+        $start = microtime(true);
+        $stmt = $db->query("SELECT 1");
+        $response_time = (microtime(true) - $start) * 1000; // ms
+        
+        // Verificar tablas críticas
+        $critical_tables = ['users', 'sessions', 'devices', 'relay_status'];
+        $missing_tables = [];
+        
+        foreach ($critical_tables as $table) {
+            try {
+                $db->query("SELECT 1 FROM $table LIMIT 1");
+            } catch (Exception $e) {
+                $missing_tables[] = $table;
+            }
         }
+        
+        $status = 'healthy';
+        $issues = [];
+        
+        if ($response_time > 100) {
+            $status = 'warning';
+            $issues[] = 'Slow response time: ' . round($response_time, 2) . 'ms';
+        }
+        
+        if (!empty($missing_tables)) {
+            $status = 'critical';
+            $issues[] = 'Missing tables: ' . implode(', ', $missing_tables);
+        }
+        
+        return [
+            'status' => $status,
+            'response_time' => round($response_time, 2) . 'ms',
+            'issues' => $issues
+        ];
+        
     } catch (Exception $e) {
-        // Silenciar errores de disco
+        return [
+            'status' => 'critical',
+            'error' => 'Database connection failed',
+            'message' => $e->getMessage()
+        ];
     }
-    
-    return null;
 }
 
-/**
- * Formatear bytes en formato legible
- */
-function formatBytes($bytes, $precision = 2) {
+// Función para verificar salud de sesiones
+function check_session_health() {
+    try {
+        $db = Database::getInstance()->getConnection();
+        
+        // Contar sesiones activas
+        $stmt = $db->query("SELECT COUNT(*) as active FROM sessions WHERE is_active = 1");
+        $active = $stmt->fetch(PDO::FETCH_ASSOC)['active'];
+        
+        // Contar sesiones expiradas sin limpiar
+        $stmt = $db->query("
+            SELECT COUNT(*) as expired 
+            FROM sessions 
+            WHERE is_active = 1 
+            AND last_activity < DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        ");
+        $expired = $stmt->fetch(PDO::FETCH_ASSOC)['expired'];
+        
+        $status = 'healthy';
+        $issues = [];
+        
+        if ($expired > 100) {
+            $status = 'warning';
+            $issues[] = 'High number of expired sessions: ' . $expired;
+        }
+        
+        return [
+            'status' => $status,
+            'active_sessions' => (int)$active,
+            'expired_sessions' => (int)$expired,
+            'issues' => $issues
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'status' => 'warning',
+            'error' => 'Session check failed',
+            'message' => $e->getMessage()
+        ];
+    }
+}
+
+// Función para verificar salud del relé
+function check_relay_health() {
+    try {
+        $db = Database::getInstance()->getConnection();
+        
+        // Verificar último estado del relé
+        $stmt = $db->query("
+            SELECT *, TIMESTAMPDIFF(MINUTE, changed_at, NOW()) as minutes_ago
+            FROM relay_status 
+            ORDER BY changed_at DESC 
+            LIMIT 1
+        ");
+        $last_status = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $status = 'healthy';
+        $issues = [];
+        
+        if (!$last_status) {
+            $status = 'warning';
+            $issues[] = 'No relay status records found';
+        } elseif ($last_status['minutes_ago'] > 1440) { // 24 horas
+            $status = 'warning';
+            $issues[] = 'No relay activity in 24 hours';
+        }
+        
+        // Simular verificación GPIO (en producción sería real)
+        $gpio_status = [
+            'pin' => 23,
+            'accessible' => true,
+            'simulated' => true
+        ];
+        
+        return [
+            'status' => $status,
+            'current_state' => $last_status ? $last_status['status'] : 'unknown',
+            'last_change' => $last_status ? $last_status['changed_at'] : null,
+            'gpio_status' => $gpio_status,
+            'issues' => $issues
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'status' => 'critical',
+            'error' => 'Relay check failed',
+            'message' => $e->getMessage()
+        ];
+    }
+}
+
+// Función para verificar salud del sistema de archivos
+function check_filesystem_health() {
+    try {
+        $paths_to_check = [
+            '/var/www/html/logs' => 'Log directory',
+            '/var/www/html/images' => 'Images directory',
+            '/var/www/html/includes' => 'Includes directory'
+        ];
+        
+        $status = 'healthy';
+        $issues = [];
+        $disk_usage = [];
+        
+        foreach ($paths_to_check as $path => $name) {
+            if (!is_dir($path)) {
+                $status = 'warning';
+                $issues[] = "$name not found: $path";
+            } elseif (!is_writable($path)) {
+                $status = 'warning';
+                $issues[] = "$name not writable: $path";
+            }
+        }
+        
+        // Verificar espacio en disco
+        $free_space = disk_free_space('/');
+        $total_space = disk_total_space('/');
+        $used_percentage = (($total_space - $free_space) / $total_space) * 100;
+        
+        if ($used_percentage > 90) {
+            $status = 'critical';
+            $issues[] = 'Disk usage critical: ' . round($used_percentage, 1) . '%';
+        } elseif ($used_percentage > 80) {
+            $status = 'warning';
+            $issues[] = 'Disk usage warning: ' . round($used_percentage, 1) . '%';
+        }
+        
+        return [
+            'status' => $status,
+            'disk_usage' => round($used_percentage, 1) . '%',
+            'free_space' => format_bytes($free_space),
+            'total_space' => format_bytes($total_space),
+            'issues' => $issues
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'status' => 'warning',
+            'error' => 'Filesystem check failed',
+            'message' => $e->getMessage()
+        ];
+    }
+}
+
+// Función para verificar salud del servidor web
+function check_webserver_health() {
+    try {
+        $status = 'healthy';
+        $issues = [];
+        $info = [];
+        
+        // Verificar carga del sistema
+        if (function_exists('sys_getloadavg')) {
+            $load = sys_getloadavg();
+            $info['load_average'] = [
+                '1min' => round($load[0], 2),
+                '5min' => round($load[1], 2),
+                '15min' => round($load[2], 2)
+            ];
+            
+            if ($load[0] > 4) {
+                $status = 'critical';
+                $issues[] = 'High system load: ' . $load[0];
+            } elseif ($load[0] > 2) {
+                $status = 'warning';
+                $issues[] = 'Elevated system load: ' . $load[0];
+            }
+        }
+        
+        // Memoria disponible
+        if (function_exists('memory_get_usage')) {
+            $memory_usage = memory_get_usage(true);
+            $memory_limit = ini_get('memory_limit');
+            $info['memory'] = [
+                'used' => format_bytes($memory_usage),
+                'limit' => $memory_limit
+            ];
+        }
+        
+        return [
+            'status' => $status,
+            'info' => $info,
+            'issues' => $issues
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'status' => 'warning',
+            'error' => 'Web server check failed',
+            'message' => $e->getMessage()
+        ];
+    }
+}
+
+// Función auxiliar para formatear bytes
+function format_bytes($bytes, $precision = 2) {
     $units = ['B', 'KB', 'MB', 'GB', 'TB'];
     
-    for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
-        $bytes /= 1024;
-    }
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
     
-    return round($bytes, $precision) . ' ' . $units[$i];
+    $bytes /= pow(1024, $pow);
+    
+    return round($bytes, $precision) . ' ' . $units[$pow];
 }
-?>

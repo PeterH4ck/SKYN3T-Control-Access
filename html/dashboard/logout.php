@@ -1,7 +1,7 @@
 <?php
 /**
- * SKYN3T - Logout Simple
- * Versión: 2.1.0 EMERGENCY FIX
+ * SKYN3T - Logout
+ * Versión: 2.3.0
  */
 
 session_start();
@@ -24,7 +24,7 @@ session_destroy();
 header('Content-Type: application/json');
 echo json_encode([
     'success' => true,
-    'message' => 'Logged out successfully',
+    'message' => 'Sesión cerrada correctamente',
     'redirect' => '/login/index_login.html'
 ]);
 ?>

@@ -1,257 +1,166 @@
+// ===========================
+// ARCHIVO: /var/www/html/api/users/list.php
+// DESCRIPCIÓN: Listar usuarios del sistema
+// ===========================
+?>
 <?php
-/**
- * Archivo: /var/www/html/api/users/list.php
- * API endpoint para listar usuarios
- */
+require_once '../../includes/config.php';
+require_once '../../includes/database.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/security.php';
 
-// Definir constante del sistema
-define('SKYN3T_SYSTEM', true);
-
-// Headers de seguridad y CORS
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-
-// Manejo de solicitudes OPTIONS (CORS preflight)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Headers
+header('Content-Type: application/json; charset=UTF-8');
+cors_headers();
 
 // Solo permitir GET
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     http_response_code(405);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Método no permitido',
-        'error_code' => 'METHOD_NOT_ALLOWED'
-    ]);
+    echo json_encode(['error' => 'Method not allowed']);
     exit;
 }
 
-// Incluir sistema de autenticación
-require_once __DIR__ . '/../../includes/config.php';
-require_once __DIR__ . '/../../includes/database.php';
-require_once __DIR__ . '/../../includes/security.php';
-require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/session.php';
+// Verificar autenticación
+$auth_result = verify_api_auth();
+if (!$auth_result['success']) {
+    http_response_code(401);
+    echo json_encode(['error' => $auth_result['message']]);
+    exit;
+}
+
+$user = $auth_result['user'];
+
+// Verificar permisos
+if (!in_array($user['role'], ['Admin', 'SuperUser'])) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Insufficient permissions']);
+    exit;
+}
+
+// Parámetros
+$role = $_GET['role'] ?? '';
+$status = $_GET['status'] ?? 'all';
+$search = $_GET['search'] ?? '';
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = min(100, max(1, (int)($_GET['limit'] ?? 20)));
+$offset = ($page - 1) * $limit;
 
 try {
-    // Verificar autenticación
-    $auth = Auth::getInstance();
-    $user = $auth->requireAuth();
+    $db = Database::getInstance()->getConnection();
     
-    if (!$user) {
-        exit; // requireAuth ya maneja la respuesta
-    }
-    
-    // Verificar permisos para gestionar usuarios
-    if (!$auth->hasPermission($user, 'manage_users') && !$auth->hasPermission($user, 'all')) {
-        http_response_code(403);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Sin permisos para ver la lista de usuarios',
-            'error_code' => 'INSUFFICIENT_PERMISSIONS'
-        ]);
-        exit;
-    }
-    
-    $db = Database::getInstance();
-    
-    // Parámetros de filtrado y paginación
-    $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
-    $limit = isset($_GET['limit']) ? max(1, min(50, (int)$_GET['limit'])) : 20;
-    $offset = ($page - 1) * $limit;
-    
-    $role = isset($_GET['role']) ? sanitize($_GET['role']) : null;
-    $active = isset($_GET['active']) ? (bool)$_GET['active'] : null;
-    $search = isset($_GET['search']) ? sanitize($_GET['search']) : null;
-    $sortBy = isset($_GET['sort']) ? sanitize($_GET['sort']) : 'created_at';
-    $sortOrder = isset($_GET['order']) && strtolower($_GET['order']) === 'asc' ? 'ASC' : 'DESC';
-    
-    // Validar campo de ordenamiento
-    $allowedSortFields = ['id', 'username', 'name', 'email', 'role', 'created_at', 'last_login'];
-    if (!in_array($sortBy, $allowedSortFields)) {
-        $sortBy = 'created_at';
-    }
-    
-    // Construir consulta WHERE
-    $whereConditions = [];
+    // Construir query
+    $where_conditions = [];
     $params = [];
     
-    if ($role && in_array($role, ['SuperUser', 'Admin', 'SupportAdmin', 'User'])) {
-        $whereConditions[] = "role = ?";
+    if ($status !== 'all') {
+        $where_conditions[] = "u.status = ?";
+        $params[] = $status;
+    }
+    
+    if (!empty($role)) {
+        $where_conditions[] = "u.role = ?";
         $params[] = $role;
     }
     
-    if ($active !== null) {
-        $whereConditions[] = "active = ?";
-        $params[] = $active ? 1 : 0;
+    if (!empty($search)) {
+        $where_conditions[] = "(u.username LIKE ? OR u.email LIKE ? OR u.full_name LIKE ?)";
+        $search_param = "%$search%";
+        $params = array_merge($params, [$search_param, $search_param, $search_param]);
     }
     
-    if ($search) {
-        $whereConditions[] = "(username LIKE ? OR name LIKE ? OR email LIKE ?)";
-        $searchTerm = "%$search%";
-        $params[] = $searchTerm;
-        $params[] = $searchTerm;
-        $params[] = $searchTerm;
+    // Admins no pueden ver SuperUsers
+    if ($user['role'] === 'Admin') {
+        $where_conditions[] = "u.role != 'SuperUser'";
     }
     
-    $whereClause = empty($whereConditions) ? '' : 'WHERE ' . implode(' AND ', $whereConditions);
+    $where_clause = !empty($where_conditions) ? "WHERE " . implode(" AND ", $where_conditions) : "";
     
-    // Consulta principal (excluir datos sensibles)
-    $sql = "
+    // Contar total
+    $count_query = "SELECT COUNT(*) as total FROM users u $where_clause";
+    $stmt = $db->prepare($count_query);
+    $stmt->execute($params);
+    $total = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    
+    // Obtener usuarios
+    $query = "
         SELECT 
-            id, username, name, email, role, active, is_active,
-            last_login, created_at, updated_at, failed_attempts,
-            CASE 
-                WHEN locked_until > NOW() THEN 1 
-                ELSE 0 
-            END as is_locked
-        FROM users 
-        $whereClause
-        ORDER BY $sortBy $sortOrder
-        LIMIT $limit OFFSET $offset
+            u.id,
+            u.username,
+            u.email,
+            u.full_name,
+            u.role,
+            u.status,
+            u.phone,
+            u.created_at,
+            u.last_login,
+            u.login_count,
+            u.failed_login_count,
+            u.locked_until,
+            (SELECT COUNT(*) FROM sessions WHERE user_id = u.id AND is_active = 1) as active_sessions,
+            (SELECT COUNT(*) FROM access_log WHERE user_id = u.id AND DATE(created_at) = CURDATE()) as actions_today
+        FROM users u
+        $where_clause
+        ORDER BY u.created_at DESC
+        LIMIT ? OFFSET ?
     ";
     
-    $users = $db->fetchAll($sql, $params);
+    $params[] = $limit;
+    $params[] = $offset;
     
-    // Contar total de usuarios
-    $countSql = "SELECT COUNT(*) as total FROM users $whereClause";
-    $totalResult = $db->fetch($countSql, $params);
-    $total = $totalResult['total'];
+    $stmt = $db->prepare($query);
+    $stmt->execute($params);
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Obtener estadísticas
-    $stats = $db->fetch("
-        SELECT 
-            COUNT(*) as total_users,
-            SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) as active_users,
-            SUM(CASE WHEN active = 0 THEN 1 ELSE 0 END) as inactive_users,
-            SUM(CASE WHEN locked_until > NOW() THEN 1 ELSE 0 END) as locked_users,
-            COUNT(DISTINCT role) as unique_roles
-        FROM users
-    ");
-    
-    // Obtener estadísticas por rol
-    $roleStats = $db->fetchAll("
-        SELECT role, COUNT(*) as count 
-        FROM users 
-        GROUP BY role 
-        ORDER BY count DESC
-    ");
-    
-    // Obtener sesiones activas por usuario
-    $sessionStats = $db->fetchAll("
-        SELECT s.user_id, COUNT(*) as active_sessions
-        FROM sessions s
-        WHERE s.expires_at > NOW()
-        GROUP BY s.user_id
-    ");
-    
-    // Crear mapa de sesiones activas
-    $sessionsMap = [];
-    foreach ($sessionStats as $stat) {
-        $sessionsMap[$stat['user_id']] = (int)$stat['active_sessions'];
-    }
-    
-    // Formatear respuesta de usuarios
-    $formattedUsers = array_map(function($userData) use ($sessionsMap) {
-        // Decodificar privilegios si existen
-        $privileges = [];
-        if (!empty($userData['privileges'])) {
-            $privileges = json_decode($userData['privileges'], true) ?: [];
+    // Formatear usuarios (sin incluir contraseñas)
+    $formatted_users = array_map(function($u) use ($user) {
+        $formatted = [
+            'id' => (int)$u['id'],
+            'username' => $u['username'],
+            'email' => $u['email'],
+            'full_name' => $u['full_name'],
+            'role' => $u['role'],
+            'status' => $u['status'],
+            'phone' => $u['phone'],
+            'created_at' => $u['created_at'],
+            'last_login' => $u['last_login'],
+            'statistics' => [
+                'login_count' => (int)$u['login_count'],
+                'failed_login_count' => (int)$u['failed_login_count'],
+                'active_sessions' => (int)$u['active_sessions'],
+                'actions_today' => (int)$u['actions_today']
+            ],
+            'is_locked' => !empty($u['locked_until']) && strtotime($u['locked_until']) > time()
+        ];
+        
+        // Solo SuperUser puede ver información de bloqueo
+        if ($user['role'] === 'SuperUser' && $formatted['is_locked']) {
+            $formatted['locked_until'] = $u['locked_until'];
         }
         
-        return [
-            'id' => (int)$userData['id'],
-            'username' => $userData['username'],
-            'name' => $userData['name'],
-            'email' => $userData['email'],
-            'role' => $userData['role'],
-            'active' => (bool)$userData['active'],
-            'is_active' => (bool)$userData['is_active'],
-            'is_locked' => (bool)$userData['is_locked'],
-            'failed_attempts' => (int)$userData['failed_attempts'],
-            'last_login' => $userData['last_login'],
-            'created_at' => $userData['created_at'],
-            'updated_at' => $userData['updated_at'],
-            'active_sessions' => $sessionsMap[$userData['id']] ?? 0,
-            'is_online' => isset($sessionsMap[$userData['id']]) && $sessionsMap[$userData['id']] > 0
-        ];
+        return $formatted;
     }, $users);
     
-    // Calcular información de paginación
-    $totalPages = ceil($total / $limit);
-    $hasNext = $page < $totalPages;
-    $hasPrev = $page > 1;
-    
-    // Log de acceso
-    Security::logSecurityEvent('users_listed', [
-        'user_id' => $user['id'],
-        'username' => $user['username'],
-        'total_returned' => count($formattedUsers),
-        'filters' => [
-            'role' => $role,
-            'active' => $active,
-            'search' => $search ? 'yes' : 'no'
-        ]
-    ], 'INFO');
-    
-    // Respuesta exitosa
     echo json_encode([
         'success' => true,
-        'users' => $formattedUsers,
+        'users' => $formatted_users,
         'pagination' => [
-            'current_page' => $page,
-            'total_pages' => $totalPages,
-            'total_items' => (int)$total,
-            'items_per_page' => $limit,
-            'has_next' => $hasNext,
-            'has_previous' => $hasPrev
+            'total' => (int)$total,
+            'page' => $page,
+            'limit' => $limit,
+            'pages' => ceil($total / $limit)
         ],
-        'statistics' => [
-            'total_users' => (int)$stats['total_users'],
-            'active_users' => (int)$stats['active_users'],
-            'inactive_users' => (int)$stats['inactive_users'],
-            'locked_users' => (int)$stats['locked_users'],
-            'unique_roles' => (int)$stats['unique_roles']
-        ],
-        'role_distribution' => array_map(function($role) {
-            return [
-                'role' => $role['role'],
-                'count' => (int)$role['count']
-            ];
-        }, $roleStats),
-        'filters_applied' => [
+        'filters' => [
             'role' => $role,
-            'active' => $active,
-            'search' => $search,
-            'sort_by' => $sortBy,
-            'sort_order' => $sortOrder
-        ],
-        'current_user' => [
-            'id' => $user['id'],
-            'username' => $user['username'],
-            'role' => $user['role']
-        ],
-        'timestamp' => date('Y-m-d H:i:s')
+            'status' => $status,
+            'search' => $search
+        ]
     ]);
     
 } catch (Exception $e) {
-    error_log("Error listando usuarios: " . $e->getMessage());
-    
-    // Log del error
-    Security::logSecurityEvent('users_list_error', [
-        'error' => $e->getMessage(),
-        'user_id' => $user['id'] ?? null
-    ], 'ERROR');
-    
+    error_log("User list error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'success' => false,
-        'message' => 'Error interno del servidor',
-        'error_code' => 'INTERNAL_ERROR'
+        'error' => 'Failed to retrieve users',
+        'message' => ENVIRONMENT === 'development' ? $e->getMessage() : 'Internal error'
     ]);
 }
-?>

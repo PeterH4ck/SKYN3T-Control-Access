@@ -3,120 +3,577 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Usuario - SKYN3T</title>
+    <title>Panel de Control | SKYN3T</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 20px; 
-            background: #f5f5f5; 
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .container { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background: #1a1a2e;
         }
-        .header { 
-            background: #007cba; 
-            color: white; 
-            padding: 20px; 
-            margin: -20px -20px 20px -20px; 
-            text-align: center; 
-            position: relative;
+
+        /* Fondo con imagen */
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('/images/login-background.jpeg') center/cover no-repeat;
+            filter: brightness(0.7);
+            z-index: -2;
         }
-        .logout { 
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: #dc3545; 
-            color: white; 
-            padding: 10px 20px; 
-            text-decoration: none; 
-            border-radius: 4px; 
+
+        /* Overlay con gradiente */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 80%, rgba(33, 153, 234, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(19, 125, 197, 0.1) 0%, transparent 50%),
+                        linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 50%, rgba(15, 52, 96, 0.9) 100%);
+            z-index: -1;
         }
-        .logout:hover {
-            background: #c82333;
+
+        /* Header flotante */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(55, 65, 79, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 2px solid rgba(33, 153, 234, 0.5);
+            padding: 15px 20px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
         }
-        .welcome-box {
-            background: #e7f3ff;
-            border: 1px solid #b3d9ff;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 20px 0;
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
-        .dev-notice {
-            background: #fff3cd;
-            border: 1px solid #ffecb5;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 20px 0;
-            border-left: 4px solid #ffc107;
+
+        .logo {
+            max-height: 40px;
+            height: auto;
+            filter: drop-shadow(0 0 10px rgba(19, 125, 197, 0.8));
         }
-        .nav-links {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+
+        .header-title {
+            color: #2199ea;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
             gap: 15px;
-            margin: 20px 0;
         }
+
+        .user-info {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(33, 153, 234, 0.1);
+            padding: 8px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(33, 153, 234, 0.3);
+        }
+
+        .user-info i {
+            color: #2199ea;
+        }
+
+        .logout-btn {
+            background: rgba(220, 53, 69, 0.2);
+            border: 2px solid #dc3545;
+            color: #fff;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(220, 53, 69, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(220, 53, 69, 0.3);
+        }
+
+        /* Contenedor principal */
+        .container {
+            max-width: 1200px;
+            margin: 100px auto 40px;
+            padding: 0 20px;
+        }
+
+        /* Tarjeta de bienvenida */
+        .welcome-card {
+            background: rgba(55, 65, 79, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 2px solid rgba(33, 153, 234, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            animation: slideInUp 0.6s ease-out;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .welcome-card h1 {
+            color: #ffffff;
+            font-size: 32px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .welcome-card p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        /* Grid de tarjetas */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        /* Tarjetas de navegación */
         .nav-card {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 15px;
+            background: rgba(55, 65, 79, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 2px solid rgba(33, 153, 234, 0.2);
+            border-radius: 20px;
+            padding: 30px;
             text-align: center;
             text-decoration: none;
-            color: #495057;
-            transition: all 0.3s;
+            color: #ffffff;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            animation: slideInUp 0.6s ease-out;
         }
+
+        .nav-card:nth-child(1) { animation-delay: 0.1s; }
+        .nav-card:nth-child(2) { animation-delay: 0.2s; }
+        .nav-card:nth-child(3) { animation-delay: 0.3s; }
+        .nav-card:nth-child(4) { animation-delay: 0.4s; }
+
+        .nav-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(33, 153, 234, 0.1) 0%, rgba(19, 125, 197, 0.05) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .nav-card:hover::before {
+            opacity: 1;
+        }
+
         .nav-card:hover {
-            background: #e9ecef;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-5px);
+            border-color: rgba(33, 153, 234, 0.5);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-card-icon {
+            font-size: 48px;
+            color: #2199ea;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 20px rgba(33, 153, 234, 0.5));
+        }
+
+        .nav-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #ffffff;
+        }
+
+        .nav-card p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        /* Tarjeta especial del dashboard */
+        .dashboard-card {
+            background: linear-gradient(135deg, rgba(33, 153, 234, 0.2), rgba(19, 125, 197, 0.1));
+            border-color: rgba(33, 153, 234, 0.4);
+        }
+
+        .dashboard-card .nav-card-icon {
+            color: #00ff00;
+            filter: drop-shadow(0 0 25px rgba(0, 255, 0, 0.6));
+        }
+
+        /* Estado del sistema */
+        .status-bar {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            color: #28a745;
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+        }
+
+        .footer-text {
+            color: #2199ea;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
+
+            .header-left {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .header-right {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .container {
+                margin-top: 130px;
+            }
+
+            .welcome-card h1 {
+                font-size: 24px;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .status-bar {
+                flex-direction: column;
+            }
+        }
+
+        /* Mensaje de desarrollo */
+        .dev-notice {
+            background: rgba(255, 193, 7, 0.1);
+            border: 2px solid rgba(255, 193, 7, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 30px;
+            color: #ffc107;
+            text-align: center;
+        }
+
+        .dev-notice i {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        /* Loading spinner */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #2199ea;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
+    <!-- Fondo -->
+    <div class="background"></div>
+    <div class="overlay"></div>
+    
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <img src="/images/logo.png" alt="SKYN3T Logo" class="logo">
+            <h1 class="header-title">Panel de Control</h1>
+        </div>
+        <div class="header-right">
+            <div class="user-info">
+                <i class="fas fa-user-circle"></i>
+                <span id="username-display">Cargando...</span>
+                <span>|</span>
+                <span id="role-display">...</span>
+            </div>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </button>
+        </div>
+    </header>
+    
+    <!-- Contenido principal -->
     <div class="container">
-        <div class="header">
-            <h1>🏠 Panel Usuario SKYN3T</h1>
-            <a href="/login/logout.php" class="logout">Cerrar Sesión</a>
+        <!-- Tarjeta de bienvenida -->
+        <div class="welcome-card">
+            <h1>🎉 Bienvenido al Sistema SKYN3T</h1>
+            <p>Has iniciado sesión correctamente. Desde aquí puedes acceder a las diferentes funciones del sistema según tus permisos.</p>
         </div>
         
-        <div class="welcome-box">
-            <h2>🎉 Bienvenido al Sistema</h2>
-            <p>Has iniciado sesión correctamente en el sistema SKYN3T.</p>
-        </div>
-        
-        <div class="nav-links">
-            <a href="/rele/dashboard.html" class="nav-card">
+        <!-- Grid de tarjetas de navegación -->
+        <div class="cards-grid">
+            <!-- Dashboard -->
+            <a href="#" onclick="goToDashboard(); return false;" class="nav-card dashboard-card">
+                <div class="nav-card-icon">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
                 <h3>📊 Dashboard Completo</h3>
-                <p>Acceder al panel administrativo (si tienes permisos)</p>
+                <p>Accede al panel administrativo completo con todas las funciones avanzadas (requiere permisos)</p>
             </a>
             
-            <a href="/login/logout.php" class="nav-card">
-                <h3>🚪 Cerrar Sesión</h3>
-                <p>Salir del sistema de forma segura</p>
+            <!-- Control de Relé -->
+            <div class="nav-card">
+                <div class="nav-card-icon">
+                    <i class="fas fa-power-off"></i>
+                </div>
+                <h3>🔌 Control de Relé</h3>
+                <p>Controla el estado del relé principal directamente desde esta interfaz</p>
+            </div>
+            
+            <!-- Dispositivos -->
+            <a href="/devices/index_devices.html" class="nav-card">
+                <div class="nav-card-icon">
+                    <i class="fas fa-microchip"></i>
+                </div>
+                <h3>📱 Dispositivos</h3>
+                <p>Gestiona y monitorea todos los dispositivos conectados al sistema</p>
+            </a>
+            
+            <!-- Ayuda -->
+            <a href="/help.html" class="nav-card">
+                <div class="nav-card-icon">
+                    <i class="fas fa-question-circle"></i>
+                </div>
+                <h3>❓ Ayuda y Soporte</h3>
+                <p>Accede a la documentación y solicita soporte técnico</p>
             </a>
         </div>
         
-        <div class="dev-notice">
-            <h3>⚠️ Página en Desarrollo</h3>
-            <p><strong>Estado:</strong> Esta página está siendo desarrollada.</p>
-            <p><strong>Funcionalidades:</strong> Próximamente se añadirán más características para usuarios estándar.</p>
-            <p><strong>Soporte:</strong> Si necesitas acceso a funciones específicas, contacta al administrador.</p>
+        <!-- Barra de estado -->
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-label">Estado del Sistema</div>
+                <div class="status-value">ONLINE</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Dispositivos Activos</div>
+                <div class="status-value">3</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Última Actividad</div>
+                <div class="status-value">Hace 2 min</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Versión</div>
+                <div class="status-value">2.0.0</div>
+            </div>
         </div>
         
-        <div style="text-align: center; margin-top: 30px; color: #6c757d; font-size: 14px;">
-            <p>SKYN3T Sistema de Control v1.0 | Usuario: <span id="username">Cargando...</span></p>
+        <!-- Aviso de desarrollo -->
+        <div class="dev-notice">
+            <i class="fas fa-hard-hat"></i>
+            <h3>⚠️ Sistema en Desarrollo</h3>
+            <p>Algunas funciones están siendo implementadas. Si necesitas acceso a características específicas, contacta al administrador.</p>
         </div>
     </div>
-
+    
+    <!-- Footer -->
+    <footer class="footer">
+        <p class="footer-text">SKYN3T - IT & NETWORK SOLUTIONS</p>
+        <p>© 2025 Todos los derechos reservados</p>
+    </footer>
+    
     <script>
-        // Mostrar información de sesión si está disponible
+        // Cargar información del usuario al iniciar
         document.addEventListener('DOMContentLoaded', function() {
-            // Aquí se podría hacer una llamada AJAX para obtener info del usuario
-            // Por ahora es estática
+            loadUserInfo();
         });
+        
+        // Cargar información del usuario
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/login/check_session.php', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+                
+                const data = await response.json();
+                
+                if (!data.authenticated) {
+                    window.location.href = '/login/index_login.html';
+                    return;
+                }
+                
+                // Mostrar información del usuario
+                document.getElementById('username-display').textContent = data.user.username || 'Usuario';
+                document.getElementById('role-display').textContent = data.user.role || 'User';
+                
+            } catch (error) {
+                console.error('Error cargando información del usuario:', error);
+                document.getElementById('username-display').textContent = 'Error';
+            }
+        }
+        
+        // Función para ir al dashboard según el rol
+        async function goToDashboard() {
+            try {
+                // Mostrar loading
+                const dashboardCard = document.querySelector('.dashboard-card');
+                const originalContent = dashboardCard.innerHTML;
+                dashboardCard.innerHTML = '<div class="loading"></div> Verificando permisos...';
+                
+                // Verificar sesión y rol
+                const response = await fetch('/login/check_session.php', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+                
+                const data = await response.json();
+                
+                if (!data.authenticated) {
+                    window.location.href = '/login/index_login.html';
+                    return;
+                }
+                
+                // Redirigir según el rol
+                const userRole = data.user.role;
+                
+                if (['SuperUser', 'Admin', 'SupportAdmin'].includes(userRole)) {
+                    // Roles administrativos van al dashboard completo
+                    window.location.href = '/dashboard/dashboard.html';
+                } else if (userRole === 'User') {
+                    // Usuarios básicos van al formulario
+                    window.location.href = '/input_data/input.html';
+                } else {
+                    // Restaurar contenido y mostrar mensaje
+                    dashboardCard.innerHTML = originalContent;
+                    alert('No tienes permisos para acceder al dashboard administrativo');
+                }
+                
+            } catch (error) {
+                console.error('Error verificando permisos:', error);
+                alert('Error al verificar permisos de acceso');
+                // Restaurar contenido
+                const dashboardCard = document.querySelector('.dashboard-card');
+                if (dashboardCard) {
+                    location.reload();
+                }
+            }
+        }
+        
+        // Función de logout
+        function logout() {
+            if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                fetch('/login/logout.php', {
+                    method: 'POST',
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = data.redirect || '/login/index_login.html';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al cerrar sesión:', error);
+                    window.location.href = '/login/index_login.html';
+                });
+            }
+        }
+        
+        // Auto-actualizar estado cada minuto
+        setInterval(function() {
+            // Actualizar última actividad
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('es-ES', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            // Aquí podrías hacer llamadas AJAX para actualizar el estado real
+        }, 60000);
     </script>
 </body>
 </html>

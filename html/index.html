@@ -99,15 +99,27 @@
 
         /* Logo */
         .logo-container {
-            margin-bottom: 40px;
+            text-align: center;
+            margin-bottom: 30px;
             animation: logoAppear 1s ease-out;
         }
 
         .logo {
-            max-width: 200px;
+            max-width: 250px;
             height: auto;
             filter: drop-shadow(0 0 30px rgba(19, 125, 197, 0.8));
             animation: logoPulse 3s ease-in-out infinite;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .logo-subtitle {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            margin-top: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            opacity: 0.8;
         }
 
         @keyframes logoAppear {
@@ -124,10 +136,11 @@
         @keyframes logoPulse {
             0%, 100% {
                 filter: drop-shadow(0 0 30px rgba(19, 125, 197, 0.8));
+                transform: scale(1);
             }
             50% {
                 filter: drop-shadow(0 0 40px rgba(19, 125, 197, 1));
-                transform: scale(1.05);
+                transform: scale(1.02);
             }
         }
 
@@ -136,13 +149,35 @@
             background: var(--glass-bg);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1.5px solid var(--glass-border);
+            border: 2px solid var(--glass-border);
             border-radius: 20px;
-            padding: 40px;
+            padding: 35px 40px 40px;
             max-width: 500px;
             width: 100%;
-            box-shadow: 0 8px 32px rgba(19, 125, 197, 0.10);
-            animation: cardAppear 0.8s ease-out 0.3s both;
+            box-shadow: 0 8px 32px rgba(19, 125, 197, 0.15);
+            animation: cardAppear 0.8s ease-out both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .verification-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% {
+                transform: translateX(-100%);
+            }
+            50% {
+                transform: translateX(100%);
+            }
         }
 
         @keyframes cardAppear {
@@ -154,25 +189,6 @@
                 opacity: 1;
                 transform: translateY(0);
             }
-        }
-
-        /* Título */
-        .title {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .title h1 {
-            font-size: 2rem;
-            color: var(--primary-color);
-            margin-bottom: 10px;
-            text-shadow: 0 2px 15px rgba(19, 125, 197, 0.5);
-            letter-spacing: 2px;
-        }
-
-        .title p {
-            color: var(--text-dim);
-            font-size: 1rem;
         }
 
         /* Lista de verificación */
@@ -194,10 +210,10 @@
             animation: itemAppear 0.5s ease-out forwards;
         }
 
-        .verification-item:nth-child(1) { animation-delay: 0.5s; }
-        .verification-item:nth-child(2) { animation-delay: 0.6s; }
-        .verification-item:nth-child(3) { animation-delay: 0.7s; }
-        .verification-item:nth-child(4) { animation-delay: 0.8s; }
+        .verification-item:nth-child(1) { animation-delay: 0.3s; }
+        .verification-item:nth-child(2) { animation-delay: 0.4s; }
+        .verification-item:nth-child(3) { animation-delay: 0.5s; }
+        .verification-item:nth-child(4) { animation-delay: 0.6s; }
 
         @keyframes itemAppear {
             to {
@@ -262,7 +278,7 @@
         .progress-container {
             margin: 30px 0;
             opacity: 0;
-            animation: fadeIn 0.5s ease-out 0.9s forwards;
+            animation: fadeIn 0.5s ease-out 0.7s forwards;
         }
 
         @keyframes fadeIn {
@@ -300,7 +316,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             opacity: 0;
-            animation: fadeIn 0.5s ease-out 1s forwards;
+            animation: fadeIn 0.5s ease-out 0.8s forwards;
             text-decoration: none;
             text-align: center;
             box-shadow: 0 4px 20px rgba(33, 153, 234, 0.3);
@@ -354,15 +370,15 @@
         /* Responsive */
         @media (max-width: 480px) {
             .logo {
-                max-width: 150px;
+                max-width: 180px;
+            }
+
+            .logo-subtitle {
+                font-size: 0.85rem;
             }
 
             .verification-card {
-                padding: 30px 20px;
-            }
-
-            .title h1 {
-                font-size: 1.5rem;
+                padding: 25px 20px 30px;
             }
 
             .verification-item {
@@ -381,8 +397,17 @@
                 margin-bottom: 20px;
             }
 
+            .logo {
+                max-width: 180px;
+            }
+
+            .logo-subtitle {
+                font-size: 0.85rem;
+                margin-top: 5px;
+            }
+
             .verification-card {
-                padding: 30px;
+                padding: 25px 30px 30px;
             }
 
             .verification-item {
@@ -399,16 +424,12 @@
 
     <!-- Container principal -->
     <div class="main-container">
-        <!-- Logo -->
-        <div class="logo-container">
-            <img src="/images/logo.png" alt="SKYN3T" class="logo">
-        </div>
-
         <!-- Tarjeta de verificación -->
         <div class="verification-card">
-            <div class="title">
-                <h1>SKYN3T</h1>
-                <p>Sistema de Control y Monitoreo</p>
+            <!-- Logo dentro del contenedor -->
+            <div class="logo-container">
+                <img src="/images/logo.png" alt="SKYN3T" class="logo">
+                <p class="logo-subtitle">Sistema de Control y Monitoreo</p>
             </div>
 
             <!-- Lista de verificación -->
