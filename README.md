@@ -1,342 +1,203 @@
-# 🔐 SKYN3T Control Access System v2.3.0
+# 🌐 SKYN3T Control System
 
-Sistema de Control y Monitoreo IoT con gestión de usuarios por roles, control de dispositivos y dashboard administrativo.
+![SKYN3T Logo](docs/images/logo-banner.png)
 
-![Version](https://img.shields.io/badge/version-2.3.0-blue.svg)
-![Status](https://img.shields.io/badge/status-active%20development-green.svg)
-![PHP](https://img.shields.io/badge/PHP-8.2+-purple.svg)
-![MariaDB](https://img.shields.io/badge/MariaDB-10.11+-orange.svg)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/PeterH4ck/skyn3t-control-access)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![PHP](https://img.shields.io/badge/PHP-7.4%2B-777BB4.svg)](https://php.net)
+[![MariaDB](https://img.shields.io/badge/MariaDB-10.11%2B-003545.svg)](https://mariadb.org)
 
----
+Sistema de Control y Monitoreo SKYN3T - Una solución integral para el control de dispositivos IoT con interfaz web moderna, gestión de usuarios y control de relé en tiempo real.
 
-## 📋 Tabla de Contenidos
+## 🚀 Características Principales
 
-- [Características](#-características)
-- [Estado Actual](#-estado-actual)
-- [Instalación Rápida](#-instalación-rápida)
-- [Diagnóstico del Sistema](#-diagnóstico-del-sistema)
-- [Uso del Sistema](#-uso-del-sistema)
-- [Arquitectura](#-arquitectura)
-- [APIs Disponibles](#-apis-disponibles)
-- [Solución de Problemas](#-solución-de-problemas)
-- [Contribuir](#-contribuir)
+- **🔐 Sistema de Autenticación Robusto**
+  - Roles jerárquicos (SuperUser, Admin, SupportAdmin, User)
+  - Manejo de sesiones seguro
+  - Protección contra ataques de fuerza bruta
 
----
+- **🎛️ Control de Relé Multi-Interface**
+  - Control web responsivo
+  - Interfaz de pantalla táctil local
+  - Botón físico de emergencia
+  - API RESTful para integración
 
-## ✨ Características
+- **👥 Gestión Completa de Usuarios y Dispositivos**
+  - CRUD completo de usuarios
+  - Registro y monitoreo de dispositivos
+  - Logs de actividad detallados
 
-### **Implementadas en v2.3.0** ✅
-- 🔐 **Autenticación robusta** con roles jerárquicos
-- 🎯 **Redirección inteligente** según perfil de usuario
-- 📊 **Dashboard administrativo** con interfaz moderna
-- 👤 **Panel de usuario básico** para solicitudes
-- 🔌 **APIs RESTful** parcialmente implementadas
-- 🛡️ **Seguridad multicapa** con validación completa
-- 📱 **Diseño responsive** mobile-first
-- 🎨 **Efectos glassmorphism** en toda la interfaz
+- **🎨 Interfaz Moderna con Glassmorphism**
+  - Diseño responsivo mobile-first
+  - Efectos visuales modernos
+  - Tema oscuro optimizado
 
-### **En Desarrollo** 🚧
-- 🔧 Control GPIO físico
-- 📈 Gráficos en tiempo real
-- 🔔 Sistema de notificaciones
-- 👥 Gestión completa de usuarios
+- **📊 Dashboard en Tiempo Real**
+  - Estadísticas del sistema
+  - Monitoreo de recursos
+  - Estado de dispositivos en vivo
 
----
+## 🖼️ Screenshots
 
-## 📊 Estado Actual
+<div align="center">
+  <img src="docs/images/login-screen.png" width="45%" alt="Login Screen">
+  <img src="docs/images/dashboard.png" width="45%" alt="Dashboard">
+</div>
 
-### **Módulos Completados**
+## 📋 Requisitos del Sistema
 
-| Módulo | Estado | Progreso |
-|--------|--------|----------|
-| Sistema de Login | ✅ Completo | 100% |
-| Dashboard Admin | ✅ Completo | 100% |
-| Panel Usuario | ✅ Completo | 100% |
-| APIs Core | ⚠️ Parcial | 40% |
-| Control GPIO | ❌ Pendiente | 0% |
+### Hardware
+- Raspberry Pi 3/4 o superior
+- Módulo relé compatible con GPIO
+- (Opcional) Pantalla táctil para control local
+- (Opcional) Botón físico para control manual
 
-### **Usuarios del Sistema**
-
-```bash
-# Administrador
-Usuario: admin
-Password: admin
-Rol: Admin
-
-# Super Usuario  
-Usuario: peterh4ck
-Password: admin
-Rol: SuperUser
-
-# Usuario básico (opcional)
-Usuario: usuario1
-Password: admin
-Rol: User
-```
-
----
-
-## 🚀 Instalación Rápida
-
-### **Requisitos Previos**
-- Raspberry Pi 3/4 con Raspbian/Debian 12
+### Software
+- Raspbian OS / Debian 12+
 - Apache 2.4+
-- PHP 8.2+
+- PHP 7.4+ con extensiones:
+  - PDO
+  - PDO_MySQL
+  - JSON
+  - Session
 - MariaDB 10.11+
+- Python 3.8+ (para control GPIO)
 - Git
 
-### **Instalación**
+## ⚡ Instalación Rápida
 
 ```bash
-# 1. Clonar repositorio
-git clone https://github.com/PeterH4ck/SKYN3T-Control-Access.git
-cd SKYN3T-Control-Access
+# Clonar el repositorio
+git clone https://github.com/peterh4ck/skyn3t-control-access.git
+cd skyn3t-control-system
 
-# 2. Copiar archivos al servidor web
-sudo cp -r src/* /var/www/html/
+# Ejecutar script de instalación
+chmod +x scripts/install.sh
+sudo ./scripts/install.sh
 
-# 3. Importar base de datos
-mysql -u root -p < database/skyn3t_db.sql
+# Configurar variables de entorno
+cp .env.example .env
+nano .env
 
-# 4. Configurar permisos
-sudo chown -R www-data:www-data /var/www/html/
-sudo chmod -R 755 /var/www/html/
-
-# 5. Reiniciar servicios
-sudo systemctl restart apache2
-sudo systemctl restart mariadb
+# Importar base de datos
+mysql -u root -p < database/schema.sql
+mysql -u root -p skyn3t_db < database/initial_data.sql
 ```
 
----
+Para una guía detallada, consulta [INSTALL.md](INSTALL.md)
 
-## 🔍 Diagnóstico del Sistema
+## 🔧 Configuración
 
-### **IMPORTANTE: Verificar Estado del Sistema**
-
-**Opción 1 - Navegador Web:**
-```
-http://192.168.4.1/diagnostics/
-```
-
-**Opción 2 - Terminal/cURL:**
-```bash
-curl -X POST http://192.168.4.1/diagnostics/index.php \
-  -d "action=run_diagnostics"
+### 1. Base de Datos
+Edita las credenciales en `.env`:
+```env
+DB_HOST=localhost
+DB_NAME=skyn3t_db
+DB_USER=skyn3t_app
+DB_PASS=admin
 ```
 
-Este comando verificará:
-- ✅ Conexión a base de datos
-- ✅ Estructura de tablas
-- ✅ Archivos del sistema
-- ✅ Permisos de directorios
-- ✅ Configuración PHP
-- ✅ Estado de sesiones
-
----
-
-## 📱 Uso del Sistema
-
-### **1. Acceso al Sistema**
-
-**URL de Login:**
-```
-http://192.168.4.1/login/index_login.html
-```
-
-### **2. Flujo por Rol de Usuario**
-
-#### **Administradores (Admin/SuperUser)**
-1. Login → Redirección automática a Dashboard
-2. URL: `http://192.168.4.1/dashboard/dashboard.html`
-3. Acceso completo a:
-   - Control de dispositivos
-   - Estadísticas del sistema
-   - Gestión de usuarios
-   - Configuración
-
-#### **Usuarios Básicos (User)**
-1. Login → Redirección a Panel de Usuario
-2. URL: `http://192.168.4.1/input_data/input.html`
-3. Acceso limitado a:
-   - Formulario de solicitudes
-   - Control básico de relé
-   - Estado del sistema
-
-### **3. Control de Relé**
-
-Todos los usuarios pueden acceder al panel básico:
-```
-http://192.168.4.1/rele/index_rele.html
-```
-
----
-
-## 🏗️ Arquitectura
-
-### **Estructura de Directorios**
-
-```
-/var/www/html/
-├── login/              # Sistema de autenticación
-├── dashboard/          # Panel administrativo
-├── input_data/         # Panel de usuarios básicos
-├── api/                # Endpoints RESTful
-├── includes/           # Core del sistema
-├── rele/              # Control de relé
-└── diagnostics/       # Herramientas de diagnóstico
-```
-
-### **Stack Tecnológico**
-
-- **Frontend**: HTML5, CSS3 (Glassmorphism), JavaScript ES6+
-- **Backend**: PHP 8.2
-- **Base de Datos**: MariaDB 10.11
-- **Servidor**: Apache 2.4
-- **Hardware**: Raspberry Pi GPIO
-
----
-
-## 🔌 APIs Disponibles
-
-### **Documentación Interactiva**
-```
-http://192.168.4.1/api/
-```
-
-### **Endpoints Implementados**
-
-#### **1. Estado del Relé**
-```bash
-GET /api/relay/status.php
-Authorization: Bearer YOUR_TOKEN
-```
-
-#### **2. Control del Relé**
-```bash
-POST /api/relay/control.php
-Authorization: Bearer YOUR_TOKEN
-Content-Type: application/json
-
-{
-  "action": "toggle",
-  "source": "api"
-}
-```
-
-#### **3. Listar Dispositivos**
-```bash
-GET /api/devices/list.php?status=active&limit=10
-Authorization: Bearer YOUR_TOKEN
-```
-
-#### **4. Agregar Dispositivo**
-```bash
-POST /api/devices/add.php
-Authorization: Bearer YOUR_TOKEN
-Content-Type: application/json
-
-{
-  "name": "Nuevo Relé",
-  "type": "relay",
-  "location": "Sala Principal"
-}
-```
-
----
-
-## 🔧 Solución de Problemas
-
-### **Error: "Acceso Denegado" en Dashboard**
-
-**Causa**: Usuario sin permisos administrativos  
-**Solución**: Verificar rol en base de datos
-```sql
-SELECT username, role FROM users WHERE username = 'tu_usuario';
-```
-
-### **Error: "Database connection error"**
-
-**Causa**: Credenciales incorrectas  
-**Solución**: Verificar configuración en `/includes/config.php`
+### 2. GPIO Pins
+Configuración por defecto en `src/includes/config.php`:
 ```php
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'skyn3t_db');
-define('DB_USER', 'skyn3t_app');
-define('DB_PASS', 'Skyn3t2025!');
+define('GPIO_RELAY_PIN', 23);   // Pin del relé
+define('GPIO_LED_PIN', 16);     // Pin del LED
+define('GPIO_BUTTON_PIN', 25);  // Pin del botón
 ```
 
-### **Dashboard no carga correctamente**
+### 3. Usuarios por Defecto
+- **Admin**: `admin` / `admin`
+- **SuperUser**: `peterh4ck` / `admin`
 
-**Solución**: Ejecutar diagnóstico
+⚠️ **IMPORTANTE**: Cambia estas contraseñas inmediatamente después de la instalación.
+
+## 📖 Documentación
+
+- [📘 Guía de Instalación Completa](INSTALL.md)
+- [📗 Documentación de APIs](docs/API.md)
+- [📙 Estructura de Base de Datos](docs/DATABASE.md)
+- [📕 Configuración de Hardware](docs/HARDWARE.md)
+- [📔 Guía de Seguridad](docs/SECURITY.md)
+
+## 🛠️ Desarrollo
+
+### Estructura del Proyecto
+```
+src/
+├── index.html          # Página principal
+├── includes/           # Core PHP
+├── api/               # Endpoints REST
+├── login/             # Sistema de autenticación
+├── dashboard/         # Panel de control
+└── assets/            # Recursos estáticos
+```
+
+### Ejecutar en Modo Desarrollo
 ```bash
-curl -X POST http://192.168.4.1/diagnostics/index.php \
-  -d "action=run_diagnostics"
+# Activar modo debug
+sed -i "s/ENVIRONMENT=production/ENVIRONMENT=development/" .env
+
+# Ver logs en tiempo real
+tail -f /var/www/html/logs/*.log
 ```
 
-### **Sesión expira rápidamente**
-
-**Solución**: Ajustar tiempo de sesión en `config.php`
-```php
-define('SESSION_LIFETIME', 3600); // 1 hora
-```
-
----
-
-## 👥 Contribuir
-
-### **Cómo Contribuir**
-
+### Contribuir
 1. Fork el proyecto
-2. Crea tu rama de características (`git checkout -b feature/NuevaCaracteristica`)
+2. Crea tu rama de característica (`git checkout -b feature/AmazingFeature`)
 3. Commit tus cambios (`git commit -m 'Add: Nueva característica'`)
-4. Push a la rama (`git push origin feature/NuevaCaracteristica`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
-### **Guías de Estilo**
+## 🧪 Testing
 
-- **PHP**: Seguir PSR-12
-- **JavaScript**: ES6+ con JSDoc
-- **CSS**: Metodología BEM
-- **Commits**: Formato convencional (feat:, fix:, docs:, etc.)
-
-### **Testing**
-
-Antes de enviar PR, ejecutar:
 ```bash
-# Test de login
-./tests/test_login.sh
+# Ejecutar tests de API
+php tests/api/ApiTest.php
 
-# Test de APIs
-./tests/test_apis.sh
-
-# Diagnóstico completo
-curl -X POST http://192.168.4.1/diagnostics/index.php \
-  -d "action=run_diagnostics"
+# Verificar conexión a base de datos
+curl -X POST http://localhost/includes/database.php \
+  -H "Content-Type: application/json" \
+  -d '{"action":"test_connection"}'
 ```
 
----
+## 📊 Estado del Proyecto
+
+- [x] Sistema de autenticación
+- [x] Dashboard principal
+- [x] Control de relé básico
+- [ ] APIs completas
+- [ ] Gestión de dispositivos
+- [ ] Sistema de notificaciones
+- [ ] Programación de horarios
+- [ ] Backup automático
+
+## 🔒 Seguridad
+
+Este proyecto implementa múltiples capas de seguridad:
+- Autenticación basada en tokens
+- Rate limiting para prevenir ataques
+- Sanitización de todas las entradas
+- Headers de seguridad HTTP
+- Logs de auditoría completos
+
+Para más detalles, consulta [SECURITY.md](docs/SECURITY.md)
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver archivo [LICENSE](LICENSE) para más detalles.
+Este proyecto está licenciado bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
 
----
+## 👥 Autores
+
+- **PETERH4CK** - *Desarrollo inicial* - PeterH4ck(https://github.com/PeterH4ck)
 
 ## 🙏 Agradecimientos
 
 - Comunidad Raspberry Pi
 - Contribuidores del proyecto
-- Equipo de desarrollo SKYN3T
+- [Font Awesome](https://fontawesome.com) por los iconos
 
 ---
 
-## 📞 Contacto
-
-**Proyecto**: SKYN3T Control Access  
-**Versión**: 2.3.0  
-**Autor**: PeterH4ck  
-**GitHub**: [https://github.com/PeterH4ck/SKYN3T-Control-Access](https://github.com/PeterH4ck/SKYN3T-Control-Access)
-
----
-
-**© 2025 SKYN3T - IT & NETWORK SOLUTIONS**
+<p align="center">
+  Hecho con ❤️ por SKYN3T - IT & NETWORK SOLUTIONS
+</p>
