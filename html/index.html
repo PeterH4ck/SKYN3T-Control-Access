@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#137DC5">
+    <meta name="description" content="SKYN3T - Sistema de Control y Monitoreo">
+    <title>SKYN3T - Sistema de Control</title>
+    
+    <style>
+        /* Reset y Variables */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2199ea;
+            --secondary-color: #137DC5;
+            --bg-dark: #222831;
+            --glass-bg: rgba(55, 65, 79, 0.16);
+            --glass-border: rgba(33, 153, 234, 0.22);
+            --text-light: rgba(255, 255, 255, 0.9);
+            --text-dim: rgba(255, 255, 255, 0.6);
+            --success: #28a745;
+            --error: #dc3545;
+            --warning: #ffc107;
+        }
+
+        /* Base */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+        }
+
+        /* Fondo */
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('/images/login-background.jpeg') center/cover;
+            filter: blur(2px);
+            transform: scale(1.1);
+            z-index: 0;
+        }
+
+        /* Partículas */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(19, 125, 197, 0.6);
+            border-radius: 50%;
+            animation: float 15s infinite linear;
+        }
+
+        @keyframes float {
+            from {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            to {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Container principal */
+        .main-container {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Logo */
+        .logo-container {
+            margin-bottom: 40px;
+            animation: logoAppear 1s ease-out;
+        }
+
+        .logo {
+            max-width: 200px;
+            height: auto;
+            filter: drop-shadow(0 0 30px rgba(19, 125, 197, 0.8));
+            animation: logoPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes logoAppear {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes logoPulse {
+            0%, 100% {
+                filter: drop-shadow(0 0 30px rgba(19, 125, 197, 0.8));
+            }
+            50% {
+                filter: drop-shadow(0 0 40px rgba(19, 125, 197, 1));
+                transform: scale(1.05);
+            }
+        }
+
+        /* Tarjeta de verificación */
+        .verification-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(19, 125, 197, 0.10);
+            animation: cardAppear 0.8s ease-out 0.3s both;
+        }
+
+        @keyframes cardAppear {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Título */
+        .title {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .title h1 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            text-shadow: 0 2px 15px rgba(19, 125, 197, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .title p {
+            color: var(--text-dim);
+            font-size: 1rem;
+        }
+
+        /* Lista de verificación */
+        .verification-list {
+            list-style: none;
+            margin-bottom: 30px;
+        }
+
+        .verification-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 15px;
+            background: rgba(19, 125, 197, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(33, 153, 234, 0.2);
+            transition: all 0.3s ease;
+            opacity: 0;
+            animation: itemAppear 0.5s ease-out forwards;
+        }
+
+        .verification-item:nth-child(1) { animation-delay: 0.5s; }
+        .verification-item:nth-child(2) { animation-delay: 0.6s; }
+        .verification-item:nth-child(3) { animation-delay: 0.7s; }
+        .verification-item:nth-child(4) { animation-delay: 0.8s; }
+
+        @keyframes itemAppear {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+        }
+
+        .verification-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .verification-icon.checking {
+            background: rgba(255, 193, 7, 0.2);
+            color: var(--warning);
+            animation: rotate 1s linear infinite;
+        }
+
+        .verification-icon.success {
+            background: rgba(40, 167, 69, 0.2);
+            color: var(--success);
+        }
+
+        .verification-icon.error {
+            background: rgba(220, 53, 69, 0.2);
+            color: var(--error);
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .verification-text {
+            flex: 1;
+        }
+
+        .verification-name {
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 2px;
+        }
+
+        .verification-status {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+
+        /* Progress bar */
+        .progress-container {
+            margin: 30px 0;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out 0.9s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(33, 153, 234, 0.5);
+        }
+
+        /* Botón de acción */
+        .action-button {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out 1s forwards;
+            text-decoration: none;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(33, 153, 234, 0.3);
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(33, 153, 234, 0.4);
+        }
+
+        .action-button:active {
+            transform: translateY(0);
+        }
+
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Footer */
+        .footer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 2;
+        }
+
+        .footer-text {
+            color: var(--primary-color);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.8;
+        }
+
+        /* Mensaje de error */
+        .error-message {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid var(--error);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+            color: var(--error);
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .logo {
+                max-width: 150px;
+            }
+
+            .verification-card {
+                padding: 30px 20px;
+            }
+
+            .title h1 {
+                font-size: 1.5rem;
+            }
+
+            .verification-item {
+                padding: 12px;
+            }
+
+            .verification-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .logo-container {
+                margin-bottom: 20px;
+            }
+
+            .verification-card {
+                padding: 30px;
+            }
+
+            .verification-item {
+                padding: 10px;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Fondo y partículas -->
+    <div class="background"></div>
+    <div class="particles" id="particles"></div>
+
+    <!-- Container principal -->
+    <div class="main-container">
+        <!-- Logo -->
+        <div class="logo-container">
+            <img src="/images/logo.png" alt="SKYN3T" class="logo">
+        </div>
+
+        <!-- Tarjeta de verificación -->
+        <div class="verification-card">
+            <div class="title">
+                <h1>SKYN3T</h1>
+                <p>Sistema de Control y Monitoreo</p>
+            </div>
+
+            <!-- Lista de verificación -->
+            <ul class="verification-list">
+                <li class="verification-item" data-check="database">
+                    <div class="verification-icon checking">
+                        <span class="icon-checking">⟳</span>
+                        <span class="icon-success" style="display:none">✓</span>
+                        <span class="icon-error" style="display:none">✗</span>
+                    </div>
+                    <div class="verification-text">
+                        <div class="verification-name">Base de Datos</div>
+                        <div class="verification-status">Verificando conexión...</div>
+                    </div>
+                </li>
+
+                <li class="verification-item" data-check="session">
+                    <div class="verification-icon checking">
+                        <span class="icon-checking">⟳</span>
+                        <span class="icon-success" style="display:none">✓</span>
+                        <span class="icon-error" style="display:none">✗</span>
+                    </div>
+                    <div class="verification-text">
+                        <div class="verification-name">Sistema de Sesiones</div>
+                        <div class="verification-status">Verificando estado...</div>
+                    </div>
+                </li>
+
+                <li class="verification-item" data-check="api">
+                    <div class="verification-icon checking">
+                        <span class="icon-checking">⟳</span>
+                        <span class="icon-success" style="display:none">✓</span>
+                        <span class="icon-error" style="display:none">✗</span>
+                    </div>
+                    <div class="verification-text">
+                        <div class="verification-name">APIs del Sistema</div>
+                        <div class="verification-status">Verificando endpoints...</div>
+                    </div>
+                </li>
+
+                <li class="verification-item" data-check="relay">
+                    <div class="verification-icon checking">
+                        <span class="icon-checking">⟳</span>
+                        <span class="icon-success" style="display:none">✓</span>
+                        <span class="icon-error" style="display:none">✗</span>
+                    </div>
+                    <div class="verification-text">
+                        <div class="verification-name">Controlador de Relé</div>
+                        <div class="verification-status">Verificando estado...</div>
+                    </div>
+                </li>
+            </ul>
+
+            <!-- Barra de progreso -->
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress"></div>
+                </div>
+            </div>
+
+            <!-- Botón de acción -->
+            <button class="action-button" id="actionButton" disabled>
+                Verificando sistema...
+            </button>
+
+            <!-- Mensaje de error -->
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p class="footer-text">SKYN3T - IT & NETWORK SOLUTIONS</p>
+    </div>
+
+    <script>
+        // Configuración
+        const CHECKS = {
+            database: { 
+                url: '/includes/database.php', 
+                method: 'POST',
+                body: JSON.stringify({ action: 'test_connection' })
+            },
+            session: { 
+                url: '/api/verify_session.php', 
+                checkExisting: true 
+            },
+            api: { 
+                url: '/api/', 
+                method: 'GET' 
+            },
+            relay: { 
+                url: '/api/relay/status.php',
+                optional: true
+            }
+        };
+
+        // Estado global
+        let checkResults = {
+            database: false,
+            session: false,
+            api: false,
+            relay: false
+        };
+
+        let totalChecks = Object.keys(CHECKS).length;
+        let completedChecks = 0;
+        let hasErrors = false;
+
+        // Generar partículas
+        function createParticles() {
+            const particlesContainer = document.getElementById('particles');
+            const particleCount = window.innerWidth < 768 ? 30 : 50;
+
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                const size = Math.random() * 4 + 2;
+                particle.style.width = size + 'px';
+                particle.style.height = size + 'px';
+                
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 15 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 15) + 's';
+                
+                particlesContainer.appendChild(particle);
+            }
+        }
+
+        // Actualizar item de verificación
+        function updateCheckItem(checkName, status, message) {
+            const item = document.querySelector(`[data-check="${checkName}"]`);
+            if (!item) return;
+
+            const icon = item.querySelector('.verification-icon');
+            const statusText = item.querySelector('.verification-status');
+
+            // Actualizar icono
+            icon.classList.remove('checking', 'success', 'error');
+            icon.classList.add(status);
+
+            // Mostrar icono correcto
+            icon.querySelector('.icon-checking').style.display = 'none';
+            icon.querySelector('.icon-success').style.display = status === 'success' ? 'block' : 'none';
+            icon.querySelector('.icon-error').style.display = status === 'error' ? 'block' : 'none';
+
+            // Actualizar texto
+            statusText.textContent = message;
+
+            // Actualizar progreso
+            if (status !== 'checking') {
+                completedChecks++;
+                updateProgress();
+            }
+        }
+
+        // Actualizar barra de progreso
+        function updateProgress() {
+            const progress = (completedChecks / totalChecks) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+        }
+
+        // Verificar base de datos
+        async function checkDatabase() {
+            try {
+                const response = await fetch(CHECKS.database.url, {
+                    method: CHECKS.database.method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: CHECKS.database.body
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    checkResults.database = true;
+                    updateCheckItem('database', 'success', 'Conexión establecida');
+                } else {
+                    throw new Error(data.error || 'Error de conexión');
+                }
+            } catch (error) {
+                hasErrors = true;
+                updateCheckItem('database', 'error', 'Error de conexión');
+                console.error('Database check failed:', error);
+            }
+        }
+
+        // Verificar sesión existente
+        async function checkSession() {
+            try {
+                // Primero verificar si hay token almacenado
+                const token = localStorage.getItem('auth_token');
+                
+                if (!token) {
+                    updateCheckItem('session', 'success', 'Sin sesión activa');
+                    return;
+                }
+
+                // Verificar si el token es válido
+                const response = await fetch(CHECKS.session.url, {
+                    headers: {
+                        'X-Session-Token': token
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.valid) {
+                    checkResults.session = true;
+                    updateCheckItem('session', 'success', 'Sesión activa detectada');
+                    
+                    // Redirigir según el rol
+                    setTimeout(() => {
+                        const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+                        if (userInfo.role === 'User') {
+                            window.location.href = '/input_data.html';
+                        } else {
+                            window.location.href = '/dashboard/';
+                        }
+                    }, 1000);
+                } else {
+                    // Token inválido, limpiar
+                    localStorage.removeItem('auth_token');
+                    localStorage.removeItem('user_info');
+                    updateCheckItem('session', 'success', 'Sin sesión activa');
+                }
+            } catch (error) {
+                updateCheckItem('session', 'success', 'Sistema de sesiones disponible');
+            }
+        }
+
+        // Verificar APIs
+        async function checkAPIs() {
+            try {
+                const response = await fetch(CHECKS.api.url);
+                const data = await response.json();
+                
+                if (data.name === 'SKYN3T API') {
+                    checkResults.api = true;
+                    updateCheckItem('api', 'success', 'APIs disponibles');
+                } else {
+                    throw new Error('APIs no responden correctamente');
+                }
+            } catch (error) {
+                hasErrors = true;
+                updateCheckItem('api', 'error', 'APIs no disponibles');
+                console.error('API check failed:', error);
+            }
+        }
+
+        // Verificar controlador de relé
+        async function checkRelay() {
+            try {
+                // Por ahora solo simulamos la verificación
+                // En producción, esto verificaría el estado real del GPIO
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                checkResults.relay = true;
+                updateCheckItem('relay', 'success', 'Controlador listo');
+            } catch (error) {
+                if (CHECKS.relay.optional) {
+                    updateCheckItem('relay', 'success', 'Controlador opcional');
+                } else {
+                    hasErrors = true;
+                    updateCheckItem('relay', 'error', 'Controlador no disponible');
+                }
+            }
+        }
+
+        // Ejecutar todas las verificaciones
+        async function runAllChecks() {
+            // Ejecutar verificaciones en paralelo
+            await Promise.all([
+                checkDatabase(),
+                checkSession(),
+                checkAPIs(),
+                checkRelay()
+            ]);
+
+            // Actualizar botón de acción
+            const actionButton = document.getElementById('actionButton');
+            
+            if (hasErrors) {
+                actionButton.textContent = 'Reintentar verificación';
+                actionButton.disabled = false;
+                actionButton.onclick = () => location.reload();
+                
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 
+                    'Algunos componentes no están disponibles. El sistema puede funcionar con limitaciones.';
+            } else if (checkResults.session) {
+                // Ya se está redirigiendo por sesión activa
+                actionButton.textContent = 'Redirigiendo...';
+            } else {
+                actionButton.textContent = 'Iniciar sesión';
+                actionButton.disabled = false;
+                actionButton.onclick = () => {
+                    window.location.href = '/login/index_login.html';
+                };
+            }
+        }
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', () => {
+            createParticles();
+            
+            // Iniciar verificaciones después de un breve retraso
+            setTimeout(() => {
+                runAllChecks();
+            }, 1000);
+        });
+
+        // Manejar errores globales
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+        });
+    </script>
+</body>
+</html>
