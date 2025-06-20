@@ -6,125 +6,6 @@
     <title>Administración Total | SKYN3T</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* CSS CRÍTICO PARA SIDEBAR - EMBEBIDO PARA GARANTIZAR FUNCIONAMIENTO */
-        #sidebar {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 320px !important;
-            height: 100vh !important;
-            background: rgba(55, 65, 79, 0.95) !important;
-            backdrop-filter: blur(20px) !important;
-            -webkit-backdrop-filter: blur(20px) !important;
-            border-right: 2px solid rgba(33, 153, 234, 0.5) !important;
-            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.3) !important;
-            z-index: 9999 !important;
-            display: flex !important;
-            flex-direction: column !important;
-            transform: translateX(-100%) !important;
-            transition: transform 0.3s ease !important;
-        }
-
-        #sidebar.active {
-            transform: translateX(0) !important;
-        }
-
-        .sidebar-overlay {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            background: rgba(0, 0, 0, 0.5) !important;
-            z-index: 9998 !important;
-            opacity: 0 !important;
-            visibility: hidden !important;
-            transition: all 0.3s ease !important;
-        }
-
-        .sidebar-overlay.active {
-            opacity: 1 !important;
-            visibility: visible !important;
-        }
-
-        .floating-menu {
-            position: fixed !important;
-            top: 20px !important;
-            left: 20px !important;
-            z-index: 500 !important;
-            background: rgba(55, 65, 79, 0.8) !important;
-            backdrop-filter: blur(16px) !important;
-            -webkit-backdrop-filter: blur(16px) !important;
-            border: 2px solid rgba(33, 153, 234, 0.5) !important;
-            color: #2199ea !important;
-            width: 50px !important;
-            height: 50px !important;
-            border-radius: 50% !important;
-            cursor: pointer !important;
-            font-size: 1.3rem !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            transition: all 0.3s ease !important;
-        }
-
-        .floating-menu:hover {
-            background: rgba(33, 153, 234, 0.4) !important;
-            transform: scale(1.1) !important;
-        }
-
-        /* Estilos para logo flotante */
-        .floating-logo {
-            position: fixed !important;
-            top: 20px !important;
-            left: 50% !important;
-            transform: translateX(-50%) !important;
-            z-index: 500 !important;
-            pointer-events: auto !important;
-        }
-
-        .logo-img {
-            max-width: 150px !important;
-            height: auto !important;
-            filter: drop-shadow(0 0 20px rgba(19,125,197,0.8)) !important;
-            transition: all 0.3s ease !important;
-            cursor: pointer !important;
-            user-select: none !important;
-        }
-
-        .logo-img:hover {
-            transform: scale(1.1) !important;
-            filter: drop-shadow(0 0 30px rgba(19,125,197,1)) !important;
-        }
-
-        /* Estilos para botón logout */
-        .floating-logout {
-            position: fixed !important;
-            top: 20px !important;
-            right: 20px !important;
-            z-index: 500 !important;
-            background: rgba(220, 53, 69, 0.3) !important;
-            backdrop-filter: blur(16px) !important;
-            -webkit-backdrop-filter: blur(16px) !important;
-            border: 2px solid #dc3545 !important;
-            color: #fff !important;
-            width: 50px !important;
-            height: 50px !important;
-            border-radius: 50% !important;
-            cursor: pointer !important;
-            font-size: 1.2rem !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            transition: all 0.3s ease !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
-        }
-
-        .floating-logout:hover {
-            background: rgba(220, 53, 69, 0.5) !important;
-            transform: scale(1.1) !important;
-        }
-
         * {
             margin: 0;
             padding: 0;
@@ -159,9 +40,82 @@
             height: 100%;
             pointer-events: none;
             z-index: -1;
-            background: radial-gradient(circle at 20% 80%, rgba(33, 153, 234, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 20%, rgba(19, 125, 197, 0.1) 0%, transparent 50%),
-                        radial-gradient(circle at 40% 40%, rgba(33, 153, 234, 0.05) 0%, transparent 50%);
+            background: radial-gradient(circle at 20% 80%, rgba(33, 153, 234, 0.1) 0%, transparent 50%);
+        }
+
+        /* Logo flotante */
+        .floating-logo {
+            position: fixed !important;
+            top: 20px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            z-index: 500 !important;
+            pointer-events: auto !important;
+        }
+
+        .logo-img {
+            max-width: 150px !important;
+            height: auto !important;
+            filter: drop-shadow(0 0 20px rgba(19,125,197,0.8)) !important;
+            transition: all 0.3s ease !important;
+            cursor: pointer !important;
+            user-select: none !important;
+        }
+
+        .logo-img:hover {
+            transform: scale(1.1) !important;
+            filter: drop-shadow(0 0 30px rgba(19,125,197,1)) !important;
+        }
+
+        /* Botones flotantes */
+        .floating-menu {
+            position: fixed !important;
+            top: 20px !important;
+            left: 20px !important;
+            z-index: 500 !important;
+            background: rgba(55, 65, 79, 0.8) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 2px solid rgba(33, 153, 234, 0.5) !important;
+            color: #2199ea !important;
+            width: 50px !important;
+            height: 50px !important;
+            border-radius: 50% !important;
+            cursor: pointer !important;
+            font-size: 1.3rem !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .floating-menu:hover {
+            background: rgba(33, 153, 234, 0.4) !important;
+            transform: scale(1.1) !important;
+        }
+
+        .floating-logout {
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            z-index: 500 !important;
+            background: rgba(220, 53, 69, 0.3) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 2px solid #dc3545 !important;
+            color: #fff !important;
+            width: 50px !important;
+            height: 50px !important;
+            border-radius: 50% !important;
+            cursor: pointer !important;
+            font-size: 1.2rem !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.3s ease !important;
+        }
+
+        .floating-logout:hover {
+            background: rgba(220, 53, 69, 0.5) !important;
+            transform: scale(1.1) !important;
         }
 
         /* Contenido principal */
@@ -204,52 +158,6 @@
             font-weight: 600;
             margin-top: 10px;
             box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
-        }
-
-        /* Tabs del sistema */
-        .admin-tabs {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .tab-button {
-            background: rgba(55, 65, 79, 0.3);
-            backdrop-filter: blur(20px);
-            border: 2px solid rgba(33, 153, 234, 0.3);
-            border-radius: 12px;
-            color: rgba(255, 255, 255, 0.8);
-            padding: 12px 20px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .tab-button:hover {
-            border-color: rgba(33, 153, 234, 0.5);
-            color: #2199ea;
-            transform: translateY(-2px);
-        }
-
-        .tab-button.active {
-            background: rgba(33, 153, 234, 0.2);
-            border-color: #2199ea;
-            color: #2199ea;
-        }
-
-        /* Contenido de tabs */
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
         }
 
         /* Panel de estadísticas rápidas */
@@ -315,6 +223,52 @@
             color: rgba(255, 255, 255, 0.8);
             font-size: 14px;
             font-weight: 500;
+        }
+
+        /* Tabs del sistema */
+        .admin-tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            background: rgba(55, 65, 79, 0.3);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(33, 153, 234, 0.3);
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-button:hover {
+            border-color: rgba(33, 153, 234, 0.5);
+            color: #2199ea;
+            transform: translateY(-2px);
+        }
+
+        .tab-button.active {
+            background: rgba(33, 153, 234, 0.2);
+            border-color: #2199ea;
+            color: #2199ea;
+        }
+
+        /* Contenido de tabs */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
         }
 
         /* Panel principal de administración */
@@ -388,24 +342,12 @@
             background: linear-gradient(135deg, #28a745, #20c997);
         }
 
-        .action-btn.success:hover {
-            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
-        }
-
         .action-btn.warning {
             background: linear-gradient(135deg, #ffc107, #e0a800);
         }
 
-        .action-btn.warning:hover {
-            box-shadow: 0 8px 25px rgba(255, 193, 7, 0.4);
-        }
-
         .action-btn.danger {
             background: linear-gradient(135deg, #dc3545, #c82333);
-        }
-
-        .action-btn.danger:hover {
-            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
         }
 
         /* Tabla de datos */
@@ -467,12 +409,6 @@
             border: 1px solid rgba(220, 53, 69, 0.3);
         }
 
-        .user-status.suspended {
-            background: rgba(108, 117, 125, 0.2);
-            color: #6c757d;
-            border: 1px solid rgba(108, 117, 125, 0.3);
-        }
-
         .status-dot {
             width: 6px;
             height: 6px;
@@ -480,50 +416,27 @@
             background: currentColor;
         }
 
-        /* Formularios */
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
+        /* Loading states */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.7);
         }
 
-        .form-group {
-            margin-bottom: 20px;
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(33, 153, 234, 0.3);
+            border-radius: 50%;
+            border-top-color: #2199ea;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 15px;
         }
 
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            color: #ffffff;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .form-input, .form-select {
-            width: 100%;
-            padding: 12px 15px;
-            background: rgba(33, 153, 234, 0.1);
-            border: 2px solid rgba(33, 153, 234, 0.3);
-            border-radius: 10px;
-            color: #ffffff;
-            font-size: 14px;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .form-input::placeholder {
-            color: rgba(255, 255, 255, 0.6);
-        }
-
-        .form-input:focus, .form-select:focus {
-            border-color: #2199ea;
-            box-shadow: 0 0 15px rgba(33, 153, 234, 0.3);
-        }
-
-        .form-select option {
-            background: #374151;
-            color: #ffffff;
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         /* Alertas y notificaciones */
@@ -561,148 +474,6 @@
             color: #2199ea;
         }
 
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 320px;
-            height: 100vh;
-            background: rgba(55, 65, 79, 0.95);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-right: 2px solid rgba(33, 153, 234, 0.5);
-            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.3);
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-        }
-
-        .sidebar.active {
-            transform: translateX(0);
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid rgba(33, 153, 234, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .sidebar-logo {
-            max-width: 120px;
-            height: auto;
-        }
-
-        .close-sidebar {
-            background: none;
-            border: none;
-            color: #2199ea;
-            font-size: 20px;
-            cursor: pointer;
-            padding: 5px;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-        }
-
-        .close-sidebar:hover {
-            background: rgba(33, 153, 234, 0.2);
-        }
-
-        .sidebar-menu {
-            flex: 1;
-            padding: 20px 0;
-            list-style: none;
-        }
-
-        .sidebar-menu li {
-            margin-bottom: 5px;
-        }
-
-        .sidebar-menu a {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            color: rgba(255, 255, 255, 0.8);
-            text-decoration: none;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .sidebar-menu a:hover,
-        .sidebar-menu a.active {
-            color: #2199ea;
-            background: rgba(33, 153, 234, 0.1);
-        }
-
-        .sidebar-menu a i {
-            margin-right: 15px;
-            width: 20px;
-            text-align: center;
-        }
-
-        .separator {
-            height: 1px;
-            background: rgba(33, 153, 234, 0.2);
-            margin: 15px 0;
-        }
-
-        /* Loading states */
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(33, 153, 234, 0.3);
-            border-radius: 50%;
-            border-top-color: #2199ea;
-            animation: spin 1s ease-in-out infinite;
-            margin-right: 15px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Acceso denegado */
-        .access-denied {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(220, 53, 69, 0.95);
-            color: white;
-            padding: 30px;
-            border-radius: 15px;
-            text-align: center;
-            z-index: 10000;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
-        }
-
-        .access-denied h2 {
-            margin-bottom: 15px;
-        }
-
-        .access-denied button {
-            background: white;
-            color: #dc3545;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 15px;
-        }
-
         /* Footer */
         .footer {
             position: fixed;
@@ -725,52 +496,17 @@
         }
 
         /* Responsive */
-        @media (max-width: 1200px) {
-            .quick-stats {
-                grid-template-columns: repeat(3, 1fr);
-            }
-        }
-
         @media (max-width: 768px) {
             .main-content {
                 padding: 80px 15px 80px;
             }
-
             .quick-stats {
                 grid-template-columns: repeat(2, 1fr);
             }
-
             .admin-tabs {
                 justify-content: flex-start;
                 overflow-x: auto;
                 padding-bottom: 10px;
-            }
-
-            #sidebar {
-                width: 100% !important;
-            }
-
-            .floating-logo .logo-img {
-                max-width: 120px !important;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .data-table {
-                font-size: 12px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .quick-stats {
-                grid-template-columns: 1fr;
-            }
-
-            .tab-button {
-                font-size: 12px;
-                padding: 10px 15px;
             }
         }
 
@@ -790,68 +526,12 @@
         .stat-card {
             animation: fadeInUp 0.5s ease-out;
         }
-
-        .admin-panel:nth-child(1) { animation-delay: 0.1s; }
-        .admin-panel:nth-child(2) { animation-delay: 0.2s; }
-        .admin-panel:nth-child(3) { animation-delay: 0.3s; }
     </style>
 </head>
 <body>
     <!-- Fondo con imagen de la tierra -->
-    <div class="background" id="background"></div>
-    <div class="particles" id="particles"></div>
-
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <img src="/images/logo.png" alt="Logo SKYN3T" class="sidebar-logo">
-            <button class="close-sidebar" id="close-sidebar"><i class="fas fa-times"></i></button>
-        </div>
-        <ul class="sidebar-menu">
-            <li>
-                <a href="/dashboard/dashboard.html"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-            </li>
-            <li>
-                <a href="/sistema/backup_interface.html"><i class="fas fa-database"></i> Backups</a>
-            </li>
-            <li class="separator"></li>
-            <li>
-                <a href="/rele/index_rele.html"><i class="fas fa-home"></i> Control Principal</a>
-            </li>
-            <li>
-                <a href="http://192.168.4.1/diagnostics/" target="_blank"><i class="fas fa-stethoscope"></i> Diagnóstico</a>
-            </li>
-            <li>
-                <a href="/devices/index_devices.html"><i class="fas fa-microchip"></i> Dispositivos</a>
-            </li>
-            <li>
-                <a href="#" id="statistics-link"><i class="fas fa-chart-bar"></i> Estadísticas</a>
-            </li>
-            <li>
-                <a href="/residentes/index.html"><i class="fas fa-users"></i> Residentes</a>
-            </li>
-            <li>
-                <a href="index.html" class="active"><i class="fas fa-user-shield"></i> Usuarios</a>
-            </li>
-            <li class="separator"></li>
-            <li>
-                <a href="#" id="settings-link"><i class="fas fa-cog"></i> Configuración</a>
-            </li>
-            <li>
-                <a href="#" id="profile-link"><i class="fas fa-user"></i> Mi Perfil</a>
-            </li>
-            <li>
-                <a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Cerrar sesión</a>
-            </li>
-            <li class="separator"></li>
-            <li>
-                <a href="#" id="help-link"><i class="fas fa-question-circle"></i> Ayuda</a>
-            </li>
-        </ul>
-    </div>
-
-    <!-- Overlay para móviles -->
-    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <div class="background"></div>
+    <div class="particles"></div>
 
     <!-- Logo flotante -->
     <div class="floating-logo">
@@ -875,7 +555,7 @@
                 <i class="fas fa-user-shield"></i> Administración Total del Sistema
             </h1>
             <p class="page-subtitle">
-                Panel de control exclusivo para la gestión completa de usuarios, permisos, roles y 
+                Panel de control exclusivo para la gestión completa de usuarios, permisos, roles y
                 administración de la base de datos. Acceso total al sistema SKYN3T.
             </p>
             <div class="admin-badge">
@@ -890,35 +570,35 @@
                 <div class="stat-icon">
                     <i class="fas fa-users"></i>
                 </div>
-                <span class="stat-number" id="total-users">0</span>
+                <span class="stat-number" id="total-users">--</span>
                 <span class="stat-label">Total Usuarios</span>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
                     <i class="fas fa-user-check"></i>
                 </div>
-                <span class="stat-number" id="active-users">0</span>
+                <span class="stat-number" id="active-users">--</span>
                 <span class="stat-label">Usuarios Activos</span>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
                     <i class="fas fa-shield-alt"></i>
                 </div>
-                <span class="stat-number" id="admin-users">0</span>
+                <span class="stat-number" id="admin-users">--</span>
                 <span class="stat-label">Administradores</span>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
                     <i class="fas fa-database"></i>
                 </div>
-                <span class="stat-number" id="total-tables">0</span>
+                <span class="stat-number" id="total-tables">--</span>
                 <span class="stat-label">Tablas en BD</span>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">
                     <i class="fas fa-clock"></i>
                 </div>
-                <span class="stat-number" id="active-sessions">0</span>
+                <span class="stat-number" id="active-sessions">--</span>
                 <span class="stat-label">Sesiones Activas</span>
             </div>
         </div>
@@ -942,8 +622,6 @@
             </button>
         </div>
 
-        <!-- Contenido de tabs -->
-        
         <!-- Tab: Gestión de Usuarios -->
         <div class="tab-content active" id="tab-users">
             <div class="admin-panel">
@@ -961,163 +639,90 @@
                     </div>
                 </div>
 
-                <div class="loading" id="users-loading">
+                <div id="users-loading" class="loading">
                     <div class="spinner"></div>
                     <span>Cargando usuarios...</span>
                 </div>
 
-                <table class="data-table" id="users-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Usuario</th>
-                            <th>Rol</th>
-                            <th>Estado</th>
-                            <th>Último Login</th>
-                            <th>Creado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="users-tbody">
-                        <!-- Los usuarios se cargarán dinámicamente -->
-                    </tbody>
-                </table>
+                <div id="users-content" style="display: none;">
+                    <table class="data-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Usuario</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th>Último Login</th>
+                                <th>Creado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <!-- Los usuarios se cargarán dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="users-error" style="display: none;" class="alert danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span id="users-error-message">Error al cargar usuarios</span>
+                </div>
             </div>
         </div>
 
-        <!-- Tab: Roles y Permisos -->
+        <!-- Otros tabs (básicos por ahora) -->
         <div class="tab-content" id="tab-roles">
             <div class="admin-panel">
                 <div class="panel-header">
                     <h3 class="panel-title">
                         <i class="fas fa-user-tag"></i> Gestión de Roles y Permisos
                     </h3>
-                    <div class="panel-actions">
-                        <button class="action-btn success" id="create-role-btn">
-                            <i class="fas fa-plus"></i> Crear Rol
-                        </button>
-                        <button class="action-btn warning" id="edit-permissions-btn">
-                            <i class="fas fa-edit"></i> Editar Permisos
-                        </button>
-                    </div>
                 </div>
-
-                <div id="roles-content">
-                    <div class="alert info">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Gestiona los roles del sistema y sus permisos asociados. Los cambios se aplicarán inmediatamente.</span>
-                    </div>
-                    
-                    <!-- Contenido de roles se cargará aquí -->
-                    <div class="loading" id="roles-loading">
-                        <div class="spinner"></div>
-                        <span>Cargando roles...</span>
-                    </div>
+                <div class="alert info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Función de gestión de roles en desarrollo...</span>
                 </div>
             </div>
         </div>
 
-        <!-- Tab: Administración BD -->
         <div class="tab-content" id="tab-database">
             <div class="admin-panel">
                 <div class="panel-header">
                     <h3 class="panel-title">
                         <i class="fas fa-database"></i> Administración de Base de Datos
                     </h3>
-                    <div class="panel-actions">
-                        <button class="action-btn" id="view-tables-btn">
-                            <i class="fas fa-table"></i> Ver Tablas
-                        </button>
-                        <button class="action-btn warning" id="backup-db-btn">
-                            <i class="fas fa-download"></i> Backup
-                        </button>
-                        <button class="action-btn danger" id="sql-console-btn">
-                            <i class="fas fa-terminal"></i> Consola SQL
-                        </button>
-                    </div>
                 </div>
-
-                <div id="database-content">
-                    <div class="alert warning">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <span>¡PRECAUCIÓN! Estás accediendo a la administración directa de la base de datos. Los cambios pueden afectar todo el sistema.</span>
-                    </div>
-                    
-                    <!-- Contenido de BD se cargará aquí -->
-                    <div class="loading" id="database-loading">
-                        <div class="spinner"></div>
-                        <span>Conectando a la base de datos...</span>
-                    </div>
+                <div class="alert warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Herramientas de administración de BD en desarrollo...</span>
                 </div>
             </div>
         </div>
 
-        <!-- Tab: Seguridad -->
         <div class="tab-content" id="tab-security">
             <div class="admin-panel">
                 <div class="panel-header">
                     <h3 class="panel-title">
                         <i class="fas fa-shield-alt"></i> Monitoreo de Seguridad
                     </h3>
-                    <div class="panel-actions">
-                        <button class="action-btn" id="view-logs-btn">
-                            <i class="fas fa-list"></i> Ver Logs
-                        </button>
-                        <button class="action-btn warning" id="active-sessions-btn">
-                            <i class="fas fa-users"></i> Sesiones Activas
-                        </button>
-                        <button class="action-btn danger" id="security-alerts-btn">
-                            <i class="fas fa-exclamation-triangle"></i> Alertas
-                        </button>
-                    </div>
                 </div>
-
-                <div id="security-content">
-                    <div class="alert info">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Monitorea la seguridad del sistema, sesiones activas y eventos sospechosos.</span>
-                    </div>
-                    
-                    <!-- Contenido de seguridad se cargará aquí -->
-                    <div class="loading" id="security-loading">
-                        <div class="spinner"></div>
-                        <span>Cargando datos de seguridad...</span>
-                    </div>
+                <div class="alert info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Sistema de monitoreo de seguridad en desarrollo...</span>
                 </div>
             </div>
         </div>
 
-        <!-- Tab: Sistema -->
         <div class="tab-content" id="tab-system">
             <div class="admin-panel">
                 <div class="panel-header">
                     <h3 class="panel-title">
                         <i class="fas fa-cogs"></i> Configuración del Sistema
                     </h3>
-                    <div class="panel-actions">
-                        <button class="action-btn" id="system-info-btn">
-                            <i class="fas fa-info"></i> Info Sistema
-                        </button>
-                        <button class="action-btn warning" id="maintenance-btn">
-                            <i class="fas fa-tools"></i> Mantenimiento
-                        </button>
-                        <button class="action-btn danger" id="emergency-btn">
-                            <i class="fas fa-exclamation-circle"></i> Emergencia
-                        </button>
-                    </div>
                 </div>
-
-                <div id="system-content">
-                    <div class="alert info">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Administra la configuración general del sistema y herramientas de mantenimiento.</span>
-                    </div>
-                    
-                    <!-- Contenido del sistema se cargará aquí -->
-                    <div class="loading" id="system-loading">
-                        <div class="spinner"></div>
-                        <span>Cargando configuración del sistema...</span>
-                    </div>
+                <div class="alert info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Herramientas de configuración del sistema en desarrollo...</span>
                 </div>
             </div>
         </div>
@@ -1134,25 +739,23 @@
         let refreshInterval = null;
         let currentTab = 'users';
 
-        // SCRIPT EMBEBIDO PARA GARANTIZAR FUNCIONAMIENTO
+        console.log('🔧 Iniciando plataforma de administración total...');
+
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🔧 Configurando plataforma de administración total...');
+            console.log('📄 DOM cargado, iniciando verificaciones...');
 
             // Verificar acceso EXCLUSIVO para peterh4ck
-            checkAdminAccess().then(accessGranted => {
-                if (!accessGranted) return;
-
-                // Configurar sidebar
-                setupSidebar();
-
-                // Configurar tabs
-                setupTabs();
-
-                // Inicializar plataforma
-                initializeAdminPlatform();
-
-                console.log('✅ Plataforma de administración configurada correctamente!');
-            });
+            checkAdminAccess()
+                .then(accessGranted => {
+                    if (accessGranted) {
+                        console.log('✅ Acceso autorizado, inicializando plataforma...');
+                        initializeAdminPlatform();
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error en verificación inicial:', error);
+                    showError('Error de inicialización: ' + error.message);
+                });
         });
 
         // Verificar acceso exclusivo para peterh4ck
@@ -1169,128 +772,101 @@
                     }
                 });
 
+                console.log('📡 Respuesta de verificación:', response.status, response.statusText);
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const data = await response.json();
-                console.log('📋 Respuesta de verificación admin:', data);
+                console.log('📋 Datos de verificación:', data);
 
                 if (!data.success) {
-                    showAccessDenied(data.message, data.security_info);
+                    showError('Acceso denegado: ' + data.message);
                     setTimeout(() => {
-                        window.location.href = data.redirect || '/rele/index_rele.html';
+                        window.location.href = '/rele/index_rele.html';
                     }, 3000);
                     return false;
                 }
 
-                console.log('✅ Acceso TOTAL autorizado para administración');
-                console.log('👤 Usuario:', data.username, 'Nivel:', data.access_level);
-                console.log('🔐 Permisos:', data.permissions);
-
-                // Guardar datos de admin
+                console.log('✅ Acceso TOTAL autorizado para:', data.username);
                 adminData = data;
                 return true;
 
             } catch (error) {
                 console.error('❌ Error verificando acceso admin:', error);
-                showAccessDenied('Error de conexión al servidor', { error: error.message });
-                setTimeout(() => {
-                    window.location.href = '/rele/index_rele.html';
-                }, 3000);
+                showError('Error de conexión: ' + error.message);
                 return false;
             }
         }
 
-        // Mostrar mensaje de acceso denegado
-        function showAccessDenied(message, securityInfo) {
-            console.log('🚫 Acceso denegado a administración:', message);
-            if (securityInfo) console.log('🔧 Security info:', securityInfo);
+        // Inicializar plataforma de administración
+        function initializeAdminPlatform() {
+            console.log('🚀 Inicializando plataforma de administración...');
 
-            const deniedDiv = document.createElement('div');
-            deniedDiv.className = 'access-denied';
-            deniedDiv.innerHTML = `
-                <h2><i class="fas fa-user-shield"></i> Acceso Restringido</h2>
-                <p>${message}</p>
-                <p>Esta área está reservada exclusivamente para el administrador principal del sistema.</p>
-                <button onclick="window.location.href='/rele/index_rele.html'">
-                    Volver al Panel de Control
-                </button>
-                ${securityInfo ? `<details style="margin-top: 15px; text-align: left; font-size: 12px;">
-                    <summary>Información de Seguridad</summary>
-                    <pre style="margin-top: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; white-space: pre-wrap;">${JSON.stringify(securityInfo, null, 2)}</pre>
-                </details>` : ''}
-            `;
-            document.body.appendChild(deniedDiv);
+            // Configurar event listeners
+            setupEventListeners();
+
+            // Cargar estadísticas rápidas
+            loadQuickStats();
+
+            // Cargar contenido del tab inicial
+            loadUsersContent();
+
+            // Configurar actualización automática cada 60 segundos
+            refreshInterval = setInterval(() => {
+                console.log('🔄 Actualización automática...');
+                loadQuickStats();
+                if (currentTab === 'users') {
+                    loadUsersContent();
+                }
+            }, 60000);
+
+            console.log('✅ Plataforma inicializada correctamente');
         }
 
-        function setupSidebar() {
-            const menuBtn = document.querySelector('.floating-menu') || document.getElementById('menu-toggle');
-            const sidebar = document.getElementById('sidebar');
-            const closeBtn = document.getElementById('close-sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
+        // Configurar event listeners
+        function setupEventListeners() {
+            console.log('🔧 Configurando event listeners...');
 
-            if (!menuBtn || !sidebar) {
-                console.error('❌ Elementos críticos del sidebar no encontrados');
-                return;
-            }
-
-            function showSidebar() {
-                sidebar.classList.add('active');
-                if (overlay) overlay.classList.add('active');
-            }
-
-            function hideSidebar() {
-                sidebar.classList.remove('active');
-                if (overlay) overlay.classList.remove('active');
-            }
-
-            // Eventos del sidebar
-            menuBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (sidebar.classList.contains('active')) {
-                    hideSidebar();
-                } else {
-                    showSidebar();
-                }
-            });
-
-            if (closeBtn) {
-                closeBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    hideSidebar();
-                });
-            }
-
-            if (overlay) {
-                overlay.addEventListener('click', function() {
-                    hideSidebar();
-                });
-            }
-
-            // Escape para cerrar
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-                    hideSidebar();
-                }
-            });
-        }
-
-        function setupTabs() {
-            const tabButtons = document.querySelectorAll('.tab-button');
-            const tabContents = document.querySelectorAll('.tab-content');
-
-            tabButtons.forEach(button => {
+            // Configurar tabs
+            document.querySelectorAll('.tab-button').forEach(button => {
                 button.addEventListener('click', function() {
                     const tabId = this.dataset.tab;
                     switchTab(tabId);
                 });
             });
+
+            // Botones de acción
+            const addUserBtn = document.getElementById('add-user-btn');
+            if (addUserBtn) {
+                addUserBtn.addEventListener('click', () => {
+                    console.log('➕ Agregar usuario');
+                    showAlert('Función agregar usuario en desarrollo', 'info');
+                });
+            }
+
+            const refreshBtn = document.getElementById('refresh-users-btn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    console.log('🔄 Refrescar usuarios');
+                    loadUsersContent();
+                });
+            }
+
+            // Logout
+            const logoutBtn = document.getElementById('btn-logout');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+            }
+
+            console.log('✅ Event listeners configurados');
         }
 
+        // Cambiar tab
         function switchTab(tabId) {
             console.log('🔄 Cambiando a tab:', tabId);
-            
+
             // Actualizar botones
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.remove('active');
@@ -1305,57 +881,10 @@
 
             currentTab = tabId;
 
-            // Cargar contenido del tab
-            loadTabContent(tabId);
-        }
-
-        function loadTabContent(tabId) {
-            switch(tabId) {
-                case 'users':
-                    loadUsersContent();
-                    break;
-                case 'roles':
-                    loadRolesContent();
-                    break;
-                case 'database':
-                    loadDatabaseContent();
-                    break;
-                case 'security':
-                    loadSecurityContent();
-                    break;
-                case 'system':
-                    loadSystemContent();
-                    break;
-            }
-        }
-
-        // Inicializar plataforma de administración
-        function initializeAdminPlatform() {
-            setupEventListeners();
-            loadQuickStats();
-            loadUsersContent(); // Cargar tab inicial
-
-            // Actualizar cada 60 segundos
-            refreshInterval = setInterval(() => {
-                loadQuickStats();
-                if (currentTab === 'users') loadUsersContent();
-                if (currentTab === 'security') loadSecurityContent();
-            }, 60000);
-        }
-
-        function setupEventListeners() {
-            // Event listeners para botones principales
-            document.getElementById('add-user-btn')?.addEventListener('click', () => {
-                console.log('➕ Agregar usuario');
-                alert('Función agregar usuario en desarrollo');
-            });
-
-            document.getElementById('refresh-users-btn')?.addEventListener('click', () => {
-                console.log('🔄 Refrescar usuarios');
+            // Cargar contenido del tab específico
+            if (tabId === 'users') {
                 loadUsersContent();
-            });
-
-            // Más event listeners se agregarán según necesidad
+            }
         }
 
         // Cargar estadísticas rápidas
@@ -1371,16 +900,15 @@
                     }
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
                 console.log('📊 Estadísticas recibidas:', data);
 
-                if (data.success) {
-                    const stats = data.stats;
-                    document.getElementById('total-users').textContent = stats.total_users || '0';
-                    document.getElementById('active-users').textContent = stats.active_users || '0';
-                    document.getElementById('admin-users').textContent = stats.admin_users || '0';
-                    document.getElementById('total-tables').textContent = stats.total_tables || '0';
-                    document.getElementById('active-sessions').textContent = stats.active_sessions || '0';
+                if (data.success && data.stats) {
+                    updateStatsDisplay(data.stats);
                 } else {
                     console.warn('⚠️ Error en estadísticas:', data.error);
                 }
@@ -1390,11 +918,37 @@
             }
         }
 
+        // Actualizar display de estadísticas
+        function updateStatsDisplay(stats) {
+            try {
+                const elements = {
+                    'total-users': stats.total_users || 0,
+                    'active-users': stats.active_users || 0,
+                    'admin-users': stats.admin_users || 0,
+                    'total-tables': stats.total_tables || 0,
+                    'active-sessions': stats.active_sessions || 0
+                };
+
+                for (const [id, value] of Object.entries(elements)) {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                }
+
+                console.log('✅ Estadísticas actualizadas en UI');
+            } catch (error) {
+                console.error('❌ Error actualizando estadísticas:', error);
+            }
+        }
+
         // Cargar contenido de usuarios
         async function loadUsersContent() {
             try {
-                showLoading('users');
                 console.log('👥 Cargando usuarios...');
+
+                showUsersLoading(true);
+                hideUsersError();
 
                 const response = await fetch('admin_api.php?action=list_users', {
                     method: 'GET',
@@ -1404,137 +958,165 @@
                     }
                 });
 
+                console.log('📡 Respuesta usuarios:', response.status, response.statusText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
                 console.log('👥 Usuarios recibidos:', data);
 
-                if (data.success) {
+                if (data.success && data.users) {
                     renderUsersTable(data.users);
-                    hideLoading('users');
+                    showUsersContent(true);
                 } else {
-                    throw new Error(data.error || 'Error cargando usuarios');
+                    throw new Error(data.error || 'Error desconocido cargando usuarios');
                 }
 
             } catch (error) {
                 console.error('❌ Error cargando usuarios:', error);
-                showError('users', 'Error al cargar usuarios');
+                showUsersError('Error al cargar usuarios: ' + error.message);
+            } finally {
+                showUsersLoading(false);
             }
         }
 
+        // Renderizar tabla de usuarios
         function renderUsersTable(users) {
-            const tbody = document.getElementById('users-tbody');
-            
-            tbody.innerHTML = users.map(user => `
-                <tr>
-                    <td>${user.id}</td>
-                    <td>
-                        <strong>${user.username}</strong>
-                        ${user.username === 'peterh4ck' ? '<i class="fas fa-crown" style="color: gold; margin-left: 5px;" title="Administrador Principal"></i>' : ''}
-                    </td>
-                    <td>
-                        <span class="user-status ${user.role.toLowerCase()}">${user.role}</span>
-                    </td>
-                    <td>
-                        <div class="user-status ${user.active ? 'active' : 'inactive'}">
-                            <div class="status-dot"></div>
-                            ${user.active ? 'Activo' : 'Inactivo'}
-                        </div>
-                    </td>
-                    <td>${user.last_login ? new Date(user.last_login).toLocaleString('es-ES') : 'Nunca'}</td>
-                    <td>${new Date(user.created_at).toLocaleDateString('es-ES')}</td>
-                    <td>
-                        <div style="display: flex; gap: 5px;">
-                            <button class="action-btn" onclick="viewUser(${user.id})" title="Ver detalles">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            ${user.username !== 'peterh4ck' ? `
-                                <button class="action-btn warning" onclick="editUser(${user.id})" title="Editar">
-                                    <i class="fas fa-edit"></i>
+            try {
+                console.log('🔧 Renderizando tabla de usuarios...');
+
+                const tbody = document.getElementById('users-tbody');
+                if (!tbody) {
+                    throw new Error('Elemento users-tbody no encontrado');
+                }
+
+                tbody.innerHTML = '';
+
+                users.forEach(user => {
+                    const row = document.createElement('tr');
+
+                    // Formatear fecha de último login
+                    let lastLogin = 'Nunca';
+                    if (user.last_login) {
+                        try {
+                            lastLogin = new Date(user.last_login).toLocaleString('es-ES');
+                        } catch (e) {
+                            lastLogin = user.last_login;
+                        }
+                    }
+
+                    // Formatear fecha de creación
+                    let createdAt = '';
+                    if (user.created_at) {
+                        try {
+                            createdAt = new Date(user.created_at).toLocaleDateString('es-ES');
+                        } catch (e) {
+                            createdAt = user.created_at;
+                        }
+                    }
+
+                    row.innerHTML = `
+                        <td>${user.id}</td>
+                        <td>
+                            <strong>${user.username}</strong>
+                            ${user.username === 'peterh4ck' ? '<i class="fas fa-crown" style="color: gold; margin-left: 5px;" title="Administrador Principal"></i>' : ''}
+                        </td>
+                        <td>
+                            <span class="user-status ${user.role.toLowerCase()}">${user.role}</span>
+                        </td>
+                        <td>
+                            <div class="user-status ${user.active ? 'active' : 'inactive'}">
+                                <div class="status-dot"></div>
+                                ${user.active ? 'Activo' : 'Inactivo'}
+                            </div>
+                        </td>
+                        <td>${lastLogin}</td>
+                        <td>${createdAt}</td>
+                        <td>
+                            <div style="display: flex; gap: 5px;">
+                                <button class="action-btn" onclick="viewUser(${user.id})" title="Ver detalles" style="font-size: 12px; padding: 5px 8px;">
+                                    <i class="fas fa-eye"></i>
                                 </button>
-                                <button class="action-btn danger" onclick="deleteUser(${user.id})" title="Eliminar">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            ` : '<span style="color: #ffc107; font-size: 12px;">Protegido</span>'}
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
+                                ${user.username !== 'peterh4ck' ? `
+                                    <button class="action-btn warning" onclick="editUser(${user.id})" title="Editar" style="font-size: 12px; padding: 5px 8px;">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="action-btn danger" onclick="deleteUser(${user.id})" title="Eliminar" style="font-size: 12px; padding: 5px 8px;">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                ` : '<span style="color: #ffc107; font-size: 12px;">Protegido</span>'}
+                            </div>
+                        </td>
+                    `;
+
+                    tbody.appendChild(row);
+                });
+
+                console.log('✅ Tabla de usuarios renderizada con', users.length, 'usuarios');
+
+            } catch (error) {
+                console.error('❌ Error renderizando tabla:', error);
+                showUsersError('Error renderizando tabla: ' + error.message);
+            }
         }
 
-        // Funciones de carga para otros tabs (básicas por ahora)
-        function loadRolesContent() {
-            console.log('🏷️ Cargando roles...');
-            document.getElementById('roles-loading').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('roles-loading').innerHTML = '<p>Contenido de roles en desarrollo...</p>';
-            }, 1000);
+        // Funciones de control de UI
+        function showUsersLoading(show) {
+            const loading = document.getElementById('users-loading');
+            if (loading) {
+                loading.style.display = show ? 'flex' : 'none';
+            }
         }
 
-        function loadDatabaseContent() {
-            console.log('🗃️ Cargando administración de BD...');
-            document.getElementById('database-loading').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('database-loading').innerHTML = '<p>Administración de BD en desarrollo...</p>';
-            }, 1000);
+        function showUsersContent(show) {
+            const content = document.getElementById('users-content');
+            if (content) {
+                content.style.display = show ? 'block' : 'none';
+            }
         }
 
-        function loadSecurityContent() {
-            console.log('🔒 Cargando seguridad...');
-            document.getElementById('security-loading').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('security-loading').innerHTML = '<p>Monitoreo de seguridad en desarrollo...</p>';
-            }, 1000);
+        function showUsersError(message) {
+            const error = document.getElementById('users-error');
+            const errorMessage = document.getElementById('users-error-message');
+            if (error && errorMessage) {
+                errorMessage.textContent = message;
+                error.style.display = 'flex';
+                showUsersContent(false);
+            }
         }
 
-        function loadSystemContent() {
-            console.log('⚙️ Cargando sistema...');
-            document.getElementById('system-loading').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('system-loading').innerHTML = '<p>Configuración del sistema en desarrollo...</p>';
-            }, 1000);
-        }
-
-        // Funciones auxiliares
-        function showLoading(section) {
-            document.getElementById(`${section}-loading`).style.display = 'flex';
-            document.getElementById(`${section}-table`)?.style.display = 'none';
-        }
-
-        function hideLoading(section) {
-            document.getElementById(`${section}-loading`).style.display = 'none';
-            document.getElementById(`${section}-table`)?.style.display = 'table';
-        }
-
-        function showError(section, message) {
-            document.getElementById(`${section}-loading`).innerHTML = `
-                <div style="text-align: center; color: #dc3545;">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>${message}</p>
-                    <button class="action-btn" onclick="location.reload()">Reintentar</button>
-                </div>
-            `;
+        function hideUsersError() {
+            const error = document.getElementById('users-error');
+            if (error) {
+                error.style.display = 'none';
+            }
         }
 
         // Funciones de usuario (básicas)
         function viewUser(userId) {
             console.log('👁️ Ver usuario:', userId);
-            alert('Ver detalles de usuario en desarrollo');
+            showAlert('Ver detalles de usuario en desarrollo', 'info');
         }
 
         function editUser(userId) {
             console.log('✏️ Editar usuario:', userId);
-            alert('Editar usuario en desarrollo');
+            showAlert('Editar usuario en desarrollo', 'info');
         }
 
         function deleteUser(userId) {
             console.log('🗑️ Eliminar usuario:', userId);
             if (confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
-                alert('Eliminar usuario en desarrollo');
+                showAlert('Eliminar usuario en desarrollo', 'info');
             }
         }
 
-        // Funciones de logout
+        // Función de logout
         function logout() {
             if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+                console.log('🚪 Cerrando sesión...');
+
                 if (refreshInterval) {
                     clearInterval(refreshInterval);
                 }
@@ -1545,9 +1127,8 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        window.location.href = data.redirect || '/login/index_login.html';
-                    }
+                    console.log('✅ Sesión cerrada');
+                    window.location.href = data.redirect || '/login/index_login.html';
                 })
                 .catch(error => {
                     console.error('Error al cerrar sesión:', error);
@@ -1556,40 +1137,67 @@
             }
         }
 
-        // Event listeners para logout
-        document.getElementById('btn-logout').addEventListener('click', logout);
-        document.getElementById('logout-btn').addEventListener('click', function(e) {
-            e.preventDefault();
-            logout();
-        });
+        // Función de alertas
+        function showAlert(message, type = 'info') {
+            console.log(`🔔 Alert [${type}]:`, message);
+
+            // Crear elemento de alerta
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${type}`;
+            alertDiv.style.position = 'fixed';
+            alertDiv.style.top = '90px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '10000';
+            alertDiv.style.minWidth = '300px';
+            alertDiv.style.maxWidth = '500px';
+
+            alertDiv.innerHTML = `
+                <i class="fas ${getAlertIcon(type)}"></i>
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; margin-left: auto; cursor: pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            document.body.appendChild(alertDiv);
+
+            // Auto-remover después de 5 segundos
+            setTimeout(() => {
+                if (alertDiv.parentElement) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+
+        function getAlertIcon(type) {
+            const icons = {
+                'success': 'fa-check-circle',
+                'error': 'fa-exclamation-circle',
+                'warning': 'fa-exclamation-triangle',
+                'info': 'fa-info-circle'
+            };
+            return icons[type] || 'fa-info-circle';
+        }
+
+        // Función de error general
+        function showError(message) {
+            console.error('💥 Error general:', message);
+            showAlert(message, 'error');
+        }
 
         // Limpiar intervalos al salir
         window.addEventListener('beforeunload', function() {
             if (refreshInterval) {
                 clearInterval(refreshInterval);
+                console.log('🧹 Intervalos limpiados');
             }
         });
 
-        // Enlaces temporales para desarrollo
-        document.getElementById('statistics-link')?.addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Módulo de estadísticas en desarrollo');
-        });
-
-        document.getElementById('settings-link')?.addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Configuración en desarrollo');
-        });
-
-        document.getElementById('profile-link')?.addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Mi perfil en desarrollo');
-        });
-
-        document.getElementById('help-link')?.addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('Ayuda en desarrollo');
-        });
+        // Debug: Mostrar información del sistema en consola
+        console.log('🔧 Plataforma de administración cargada');
+        console.log('📍 URL actual:', window.location.href);
+        console.log('🍪 Cookies:', document.cookie);
+        console.log('🌐 User Agent:', navigator.userAgent);
     </script>
 </body>
 </html>
